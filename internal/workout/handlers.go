@@ -5,11 +5,9 @@ package workout
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
-	"mime"
 	"net/http"
 	"time"
 
@@ -318,19 +316,9 @@ func writeTxError(w http.ResponseWriter, op string, err error) {
 	}
 }
 
-// decodeJSON enforces a JSON content type (cross-site callers would need a CORS preflight) and a size cap.
+// decodeJSON decodes a JSON body capped at maxBodyBytes (see httpx.DecodeJSON).
 func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
-	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "application/json" {
-		httpx.WriteError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
-		return false
-	}
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "invalid JSON body")
-		return false
-	}
-	return true
+	return httpx.DecodeJSON(w, r, maxBodyBytes, v)
 }
 
 // lockOpenExercise locks the user's workout, checks it is still open and contains the exercise,

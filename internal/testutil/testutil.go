@@ -10,12 +10,14 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
+	"github.com/sudhanshubhushan4535/calmfit/internal/config"
 )
 
 const hint = "run `make test-db`, then `make test` (or `go test -short ./...` to skip DB tests)"
@@ -109,6 +111,31 @@ func Login(t *testing.T, baseURL string, fv *FakeVerifier, sub string) *http.Cli
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("login %s: status %d", sub, resp.StatusCode)
+	}
+	return c
+}
+
+// Config loads the repo's config/app.json (found by walking up to go.mod), so tests use the same
+// weights and timezone as the app.
+func Config(t *testing.T) config.Config {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("go.mod not found above the test directory")
+		}
+		dir = parent
+	}
+	c, err := config.Load(filepath.Join(dir, "config", "app.json"))
+	if err != nil {
+		t.Fatal(err)
 	}
 	return c
 }

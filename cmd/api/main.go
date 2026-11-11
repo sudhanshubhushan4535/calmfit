@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
+	"github.com/sudhanshubhushan4535/calmfit/internal/config"
 	"github.com/sudhanshubhushan4535/calmfit/internal/server"
 )
 
@@ -36,6 +37,15 @@ func run() error {
 		return err
 	}
 
+	cfgPath := os.Getenv("APP_CONFIG")
+	if cfgPath == "" {
+		cfgPath = "config/app.json"
+	}
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return err
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -50,7 +60,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           server.New(pool, auth.GoogleVerifier{ClientID: clientID}, clientID),
+		Handler:           server.New(pool, auth.GoogleVerifier{ClientID: clientID}, clientID, cfg),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

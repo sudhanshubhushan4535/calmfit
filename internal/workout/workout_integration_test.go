@@ -46,7 +46,7 @@ func setup(t *testing.T) *env {
 	db := testutil.DB(t)
 	prefix := testutil.SubPrefix(t, db)
 	fv := testutil.NewFakeVerifier()
-	srv := httptest.NewServer(server.New(db, fv, "test-client-id"))
+	srv := httptest.NewServer(server.New(db, fv, "test-client-id", testutil.Config(t)))
 	t.Cleanup(srv.Close)
 	return &env{url: srv.URL, db: db, fv: fv, prefix: prefix}
 }

@@ -1,0 +1,8 @@
+{
+  "timezone": "Asia/Kolkata",
+  "plate": {
+    "protein_points": 2,
+    "fiber_points": 1,
+    "good_day_min": 6
+  }
+}
