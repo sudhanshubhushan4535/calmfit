@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Veg protein guide</title>
+  <style>
+    body { font: 16px/1.55 system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; color: #18181b; background: #fff; }
+    h1 { margin-bottom: .25rem; }
+    .lead { color: #52525b; }
+    .note { background: #fef9c3; border: 1px solid #facc15; border-radius: 8px; padding: .6rem .9rem; }
+    table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+    th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid #e4e4e7; vertical-align: top; }
+    th { font-size: .85rem; color: #52525b; }
+    mark.verify { background: #fef3c7; padding: 0 .15rem; border-radius: 3px; white-space: nowrap; }
+    mark.verify sup { color: #b45309; font-size: .6rem; margin-left: .15rem; }
+    .tier { display: inline-block; font-size: .8rem; padding: 0 .4rem; border-radius: 999px; }
+    .low { background: #f4f4f5; } .mod { background: #dbeafe; } .rich { background: #dcfce7; }
+  </style>
+</head>
+<body>
+  <h1>Veg protein guide</h1>
+  <p class="lead">What counts as "Protein ✓" on your plate check, for vegetarian meals.</p>
+  <p class="note">Draft: every figure on this page is approximate and marked <em>verify before launch</em>.
+    They must be checked against a reliable nutrition source before the pilot.</p>
+
+  <h2>Protein ✓ means a protein-rich serving</h2>
+  <p>Tick Protein when the meal had at least one <span class="tier rich">protein-rich</span> serving.
+    Two <span class="tier mod">moderate</span> servings together also count.</p>
+  <table>
+    <tr><th>Tier</th><th>Protein per serving</th><th>Examples</th></tr>
+    <tr><td><span class="tier low">Low</span></td><td>under {{v "5 g"}}</td><td>Rice, roti, most sabzi, plain curd in a small bowl</td></tr>
+    <tr><td><span class="tier mod">Moderate</span></td><td>{{v "5–10 g"}}</td><td>A katori of dal, a bowl of curd, a glass of milk</td></tr>
+    <tr><td><span class="tier rich">Protein-rich</span></td><td>over {{v "10 g"}}</td><td>Paneer, soya chunks, hung curd, a scoop of whey</td></tr>
+  </table>
+
+  <h2>Common foods</h2>
+  <table>
+    <tr><th>Food</th><th>Serving</th><th>Protein</th><th>Notes</th></tr>
+    <tr><td>Paneer</td><td>{{v "100 g"}}</td><td>{{v "~18 g"}}</td><td>Also about {{v "~20 g"}} fat. That's fine; see below.</td></tr>
+    <tr><td>Soya chunks, <strong>dry</strong></td><td>{{v "100 g"}} dry</td><td>{{v "~52 g"}}</td><td>Labels list the dry weight.</td></tr>
+    <tr><td>Soya chunks, <strong>cooked</strong></td><td>{{v "100 g"}} soaked/cooked</td><td>{{v "~15–17 g"}}</td><td>They absorb water and roughly triple in weight ({{v "~3×"}}), so cooked
+      soya has far less protein per gram than the dry label suggests. Weigh dry, or divide by about {{v "3"}}.</td></tr>
+    <tr><td>Dal (cooked)</td><td>{{v "1 katori (~150 g)"}}</td><td>{{v "~6–9 g"}}</td><td>Moderate. Thicker dal has more per bowl.</td></tr>
+    <tr><td>Curd</td><td>{{v "100 g"}}</td><td>{{v "~3–4 g"}}</td><td>Hung curd / Greek-style is about {{v "~8–10 g"}} per {{v "100 g"}}.</td></tr>
+    <tr><td>Whey protein</td><td>{{v "1 scoop (~30 g)"}}</td><td>{{v "~20–25 g"}}</td><td>Check the label; scoop sizes vary by brand.</td></tr>
+  </table>
+
+  <h2>Less gravy, more of the protein</h2>
+  <p>In paneer or soya curries, most of the bowl can be gravy. Serve yourself more pieces and less
+    gravy: the protein is in the paneer or soya, not the sauce.</p>
+
+  <h2>Fat is not the enemy</h2>
+  <p>Paneer, curd and milk come with fat. Some fat in a meal is normal and helps you feel full.
+    Watch the oil and ghee in cooking, not the paneer itself.</p>
+
+  <h2>Fiber and isabgol</h2>
+  <p>Fiber ✓ comes from vegetables, salad, fruit, dal and whole grains. Isabgol (psyllium husk) can
+    help on days you fall short: about {{v "1–2 teaspoons"}} stirred into a full glass of water, and
+    drink plenty of water through the day. It adds fiber, not protein. Check with a doctor if you
+    take regular medication, since isabgol can affect how some medicines are absorbed.</p>
+</body>
+</html>

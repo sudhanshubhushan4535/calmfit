@@ -44,3 +44,14 @@ revisit any of them by changing the code, tests and this file together.
   The streak counts consecutive good days ending today; if today isn't good *yet*, it ends at
   yesterday (an unfinished day doesn't break it). Lookback is capped at 366 days.
 - **Why:** Rounding down never overstates. Breaking the streak at breakfast would be wrong and demotivating.
+
+### D8. What does "Protein ✓" mean on the plate check?
+- **Choice:** The guide says to tick it for one protein-rich serving, or two moderate ones.
+  Tier cut-offs (<5 g low, 5–10 g moderate, >10 g rich) are marked "verify before launch" like every other figure.
+- **Why:** The spec names the tiers but not the rule. This is the simplest rule a gym member can apply at the table.
+
+### D9. Is the protein guide public, and what else is on it?
+- **Choice:** `GET /guide/protein` needs no sign-in. The isabgol note includes "check with a doctor
+  if you take regular medication".
+- **Why:** It's static education with no user data. Psyllium can affect how medicines are absorbed,
+  so the cautious wording is the safer default.

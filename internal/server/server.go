@@ -23,5 +23,6 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string, cfg config.Config) 
 	(&workout.Handler{DB: db}).Register(mux, a.RequireUser)
 	(&plate.Handler{DB: db, Cfg: cfg}).Register(mux, a.RequireUser)
 	mux.HandleFunc("GET /{$}", web.Index(clientID))
+	mux.HandleFunc("GET /guide/protein", web.ProteinGuide)
 	return mux
 }
