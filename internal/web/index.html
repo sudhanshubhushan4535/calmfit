@@ -16,6 +16,8 @@
     .row .val { min-width: 4.5rem; text-align: center; font-variant-numeric: tabular-nums; }
     .done { color: #15803d; }
     .err { color: #b91c1c; white-space: pre-wrap; }
+    svg.chart { width: 100%; height: auto; border: 1px solid #e4e4e7; border-radius: 6px; }
+    svg.chart text { font: 10px system-ui, sans-serif; fill: #52525b; }
   </style>
 </head>
 <body>
@@ -47,6 +49,15 @@
   <button id="start" type="button">Start / resume workout</button>
   <div id="workout"></div>
   <p id="werr" class="err"></p>
+
+  <h2>Progress</h2>
+  <div class="row">
+    <input id="pex" value="Incline_Dumbbell_Press" style="width:16rem" aria-label="exercise id">
+    <button id="pload" type="button">Set-1 weight chart</button>
+    <button id="wload" type="button">Workouts per week</button>
+  </div>
+  <div id="charts"></div>
+  <p id="perr" class="err"></p>
 
   <script src="https://accounts.google.com/gsi/client" async></script>
   <script>
@@ -219,6 +230,66 @@
         wEl.append(card);
       }
     }
+
+    // ---- Progress charts: inline SVG, no libraries ----
+    const NS = 'http://www.w3.org/2000/svg';
+    const charts = document.getElementById('charts');
+    const pErr = document.getElementById('perr');
+    function svgEl(tag, attrs = {}, text) {
+      const n = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+      if (text !== undefined) n.textContent = text;
+      return n;
+    }
+    const W = 600, H = 220, PAD = { l: 40, r: 10, t: 20, b: 30 };
+    function frame(title) {
+      const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img', 'aria-label': title });
+      svg.append(svgEl('text', { x: PAD.l, y: 12 }, title));
+      svg.append(svgEl('line', { x1: PAD.l, y1: H - PAD.b, x2: W - PAD.r, y2: H - PAD.b, stroke: '#a1a1aa' }));
+      return svg;
+    }
+    const plotW = W - PAD.l - PAD.r, plotH = H - PAD.t - PAD.b;
+
+    function lineChart(p) {
+      const svg = frame(`${p.name}: set-1 weight (kg), label = reps`);
+      if (!p.points.length) { svg.append(svgEl('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle' }, 'No completed sessions yet')); return svg; }
+      const ws = p.points.map(pt => pt.weight_g / 1000);
+      const lo = Math.min(...ws) * 0.9, hi = Math.max(...ws) * 1.05 || 1;
+      const x = i => PAD.l + (p.points.length === 1 ? plotW / 2 : i * plotW / (p.points.length - 1));
+      const y = v => PAD.t + plotH - (v - lo) / (hi - lo || 1) * plotH;
+      svg.append(svgEl('text', { x: 4, y: y(hi) + 4 }, hi.toFixed(1)), svgEl('text', { x: 4, y: y(lo) }, lo.toFixed(1)));
+      svg.append(svgEl('polyline', { points: ws.map((v, i) => `${x(i)},${y(v)}`).join(' '), fill: 'none', stroke: '#2563eb', 'stroke-width': 2 }));
+      p.points.forEach((pt, i) => {
+        svg.append(svgEl('circle', { cx: x(i), cy: y(ws[i]), r: 3.5, fill: '#2563eb' }));
+        svg.append(svgEl('text', { x: x(i), y: y(ws[i]) - 7, 'text-anchor': 'middle' }, `${ws[i]}×${pt.reps}`));
+        if (i === 0 || i === p.points.length - 1) svg.append(svgEl('text', { x: x(i), y: H - 12, 'text-anchor': 'middle' }, pt.date.slice(5)));
+      });
+      return svg;
+    }
+
+    function barChart(weeks) {
+      const svg = frame('Workouts per week: done (blue) vs planned (grey)');
+      const hi = Math.max(1, ...weeks.map(w => Math.max(w.done, w.planned)));
+      const slot = plotW / weeks.length, bw = Math.min(18, slot / 3);
+      const y = v => PAD.t + plotH - v / hi * plotH;
+      weeks.forEach((w, i) => {
+        const cx = PAD.l + slot * i + slot / 2;
+        svg.append(svgEl('rect', { x: cx - bw - 1, y: y(w.planned), width: bw, height: H - PAD.b - y(w.planned), fill: '#d4d4d8' }));
+        svg.append(svgEl('rect', { x: cx + 1, y: y(w.done), width: bw, height: H - PAD.b - y(w.done), fill: '#2563eb' }));
+        svg.append(svgEl('text', { x: cx, y: H - 12, 'text-anchor': 'middle' }, w.week_start.slice(5)));
+        svg.append(svgEl('text', { x: cx + 1 + bw / 2, y: y(w.done) - 3, 'text-anchor': 'middle' }, `${w.done}/${w.planned}`));
+      });
+      return svg;
+    }
+
+    async function chartRun(fn) {
+      pErr.textContent = '';
+      try { charts.replaceChildren(await fn()); } catch (e) { pErr.textContent = e.message; }
+    }
+    document.getElementById('pload').addEventListener('click', () => chartRun(async () =>
+      lineChart(await api('GET', '/progress/' + encodeURIComponent(document.getElementById('pex').value.trim())))));
+    document.getElementById('wload').addEventListener('click', () => chartRun(async () =>
+      barChart((await api('GET', '/progress/weekly?weeks=8')).weeks)));
 
     document.getElementById('start').addEventListener('click', () => run(async () => {
       wo = await api('POST', '/workouts/start');

@@ -21,7 +21,7 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string, cfg config.Config) 
 	a := &auth.Handler{DB: db, Verifier: v}
 	a.Register(mux)
 	(&program.Handler{DB: db}).Register(mux, a.RequireUser)
-	(&workout.Handler{DB: db}).Register(mux, a.RequireUser)
+	(&workout.Handler{DB: db, Cfg: cfg}).Register(mux, a.RequireUser)
 	(&plate.Handler{DB: db, Cfg: cfg}).Register(mux, a.RequireUser)
 	(&exercise.Handler{DB: db}).Register(mux, a.RequireUser)
 	mux.HandleFunc("GET /{$}", web.Index(clientID))

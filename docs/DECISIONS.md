@@ -70,3 +70,14 @@ revisit any of them by changing the code, tests and this file together.
   The API returns `cues_status: "review"` for every exercise until a coach signs them off.
 - **Why:** The spec says to mark cues "review". A per-exercise review flag would be a new
   workflow; one constant is the smallest honest marker.
+
+### D12. What counts as "planned" for a past week?
+- **Choice:** The user's *current* `days_per_week`, for every week shown.
+- **Why:** v1 doesn't record when `days_per_week` changed. Storing that history would be a new feature.
+
+### D13. How are workouts dated and bucketed in the progress charts?
+- **Choice:** By `completed_at` in the config timezone; a week is Mon 00:00 to Sun 24:00 local.
+  `GET /progress/{exerciseID}` returns set 1 of completed workouts only, the 50 most recent,
+  oldest first. Weekly takes `weeks` 1–26 (default 8) ending with the current week. A user who
+  isn't onboarded gets 409 `onboarding_required`.
+- **Why:** In-progress sets aren't final. Bounded responses keep the test page and API cheap.

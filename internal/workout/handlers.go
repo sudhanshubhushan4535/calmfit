@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
+	"github.com/sudhanshubhushan4535/calmfit/internal/config"
 	"github.com/sudhanshubhushan4535/calmfit/internal/httpx"
 	"github.com/sudhanshubhushan4535/calmfit/internal/program"
 	"github.com/sudhanshubhushan4535/calmfit/internal/progression"
@@ -42,7 +43,9 @@ const (
 
 // Handler serves the workout endpoints.
 type Handler struct {
-	DB *pgxpool.Pool
+	DB  *pgxpool.Pool
+	Cfg config.Config    // timezone for local dates and Mon–Sun weeks
+	Now func() time.Time // nil means time.Now
 }
 
 // Register adds the routes; every route is wrapped in requireUser.
@@ -54,6 +57,8 @@ func (h *Handler) Register(mux *http.ServeMux, requireUser func(http.Handler) ht
 	mux.Handle("POST /workouts/{id}/exercises/{exerciseID}/later", requireUser(http.HandlerFunc(h.later)))
 	mux.Handle("POST /workouts/{id}/sets", requireUser(http.HandlerFunc(h.logSet)))
 	mux.Handle("POST /workouts/{id}/complete", requireUser(http.HandlerFunc(h.complete)))
+	mux.Handle("GET /progress/weekly", requireUser(http.HandlerFunc(h.weeklyProgress)))
+	mux.Handle("GET /progress/{exerciseID}", requireUser(http.HandlerFunc(h.exerciseProgress)))
 }
 
 // LoggedSet is one logged working set.

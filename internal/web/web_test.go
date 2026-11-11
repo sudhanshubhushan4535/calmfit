@@ -18,6 +18,7 @@ func TestIndexRenders(t *testing.T) {
 	Index("client-123")(rec, httptest.NewRequest("GET", "/", nil))
 	body := rec.Body.String()
 	if rec.Code != 200 || !strings.Contains(body, `data-client_id="client-123"`) || !strings.Contains(body, "/workouts/start") ||
+		!strings.Contains(body, "/progress/weekly") || strings.Contains(body, "<script src=\"https://cdn") ||
 		!strings.Contains(body, "</html>") {
 		t.Fatalf("status %d, body %d bytes: missing client id, workout script or closing tag", rec.Code, len(body))
 	}
