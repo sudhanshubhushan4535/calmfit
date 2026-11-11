@@ -81,3 +81,23 @@ revisit any of them by changing the code, tests and this file together.
   oldest first. Weekly takes `weeks` 1–26 (default 8) ending with the current week. A user who
   isn't onboarded gets 409 `onboarding_required`.
 - **Why:** In-progress sets aren't final. Bounded responses keep the test page and API cheap.
+
+### D14. What counts as a lift that "went up"?
+- **Choice:** The week's best set 1 (heaviest, then most reps) beats the last set 1 before the
+  week: more weight, or the same weight for more reps. An exercise with no earlier set 1 isn't listed.
+- **Why:** Set 1 is what the engine progresses on. A first-ever session isn't "up" from anything.
+
+### D15. Where does "stalled" come from?
+- **Choice:** For each exercise trained that week, the review runs `progression.Next` on history up
+  to the end of Sunday and reports `Plan.Stalled`. The review never decides a stall on its own.
+- **Why:** The spec says "flagged stalled by the engine". One source of truth, so the review can't
+  disagree with the next workout.
+
+### D16. Which tip is shown, and how is the plate scored for the week?
+- **Choice:** One tip, the first rule that matches: no workouts → start with one; fewer than
+  planned → consistency; any stall → "the plan has adjusted, focus on clean reps, sleep, protein";
+  good plate days on fewer than half of the days so far → protein; otherwise "keep the same routine".
+  The plate counts only the days that have happened (all 7 for a past week). The streak is as of
+  Sunday for a past week, or today (unfinished) for the current one. Future dates → 400.
+- **Why:** Showing up comes first. A stall tip never contradicts the engine's own fix. Counting
+  days that haven't happened yet would punish a Tuesday review.

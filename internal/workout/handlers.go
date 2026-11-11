@@ -57,6 +57,7 @@ func (h *Handler) Register(mux *http.ServeMux, requireUser func(http.Handler) ht
 	mux.Handle("POST /workouts/{id}/exercises/{exerciseID}/later", requireUser(http.HandlerFunc(h.later)))
 	mux.Handle("POST /workouts/{id}/sets", requireUser(http.HandlerFunc(h.logSet)))
 	mux.Handle("POST /workouts/{id}/complete", requireUser(http.HandlerFunc(h.complete)))
+	mux.Handle("GET /review/weekly", requireUser(http.HandlerFunc(h.weeklyReview)))
 	mux.Handle("GET /progress/weekly", requireUser(http.HandlerFunc(h.weeklyProgress)))
 	mux.Handle("GET /progress/{exerciseID}", requireUser(http.HandlerFunc(h.exerciseProgress)))
 }
