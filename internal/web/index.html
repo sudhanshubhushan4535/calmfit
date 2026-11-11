@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CalmFit sign-in test</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    pre { background: #f4f4f5; padding: 1rem; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+    button { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>CalmFit sign-in test</h1>
+  <p>Manual testing only. Sign in with Google, then the result of <code>GET /me</code> appears below.</p>
+
+  <div id="g_id_onload"
+       data-client_id="{{.ClientID}}"
+       data-callback="onCredential"
+       data-auto_prompt="true"
+       data-use_fedcm_for_prompt="true"></div>
+  <div class="g_id_signin" data-type="standard" data-text="signin_with"></div>
+
+  <h2>/me</h2>
+  <pre id="out">loading…</pre>
+  <button id="logout" type="button">Log out</button>
+
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script>
+    const out = document.getElementById('out');
+
+    async function showMe() {
+      const r = await fetch('/me');
+      out.textContent = r.status + '\n' + await r.text();
+    }
+
+    // Called by Google Identity Services with {credential: <ID token>}.
+    async function onCredential(resp) {
+      out.textContent = 'signing in…';
+      const r = await fetch('/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: resp.credential }),
+      });
+      if (!r.ok) {
+        out.textContent = 'POST /auth/google → ' + r.status + '\n' + await r.text();
+        return;
+      }
+      await showMe();
+    }
+
+    document.getElementById('logout').addEventListener('click', async () => {
+      await fetch('/auth/logout', { method: 'POST' });
+      if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+      await showMe();
+    });
+
+    showMe();
+  </script>
+</body>
+</html>
