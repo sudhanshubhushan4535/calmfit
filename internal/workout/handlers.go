@@ -53,6 +53,7 @@ func (h *Handler) Register(mux *http.ServeMux, requireUser func(http.Handler) ht
 	mux.Handle("GET /workouts/next", requireUser(http.HandlerFunc(h.next)))
 	mux.Handle("POST /workouts/start", requireUser(http.HandlerFunc(h.start)))
 	mux.Handle("POST /workouts/{id}/exercises/{exerciseID}/cold-start", requireUser(http.HandlerFunc(h.coldStart)))
+	mux.Handle("POST /workouts/{id}/exercises/{exerciseID}/later", requireUser(http.HandlerFunc(h.later)))
 	mux.Handle("POST /workouts/{id}/sets", requireUser(http.HandlerFunc(h.logSet)))
 	mux.Handle("POST /workouts/{id}/complete", requireUser(http.HandlerFunc(h.complete)))
 }
@@ -434,6 +435,42 @@ func (h *Handler) coldStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.writeExercise(w, ctx, uid, id, exerciseID, "workout: cold start view")
+}
+
+// later ("do later") moves an exercise to the end of the user's open workout. Only this workout's
+// order changes: the template and every plan are untouched. Moving the last exercise is a no-op,
+// so the call is idempotent. The moved row gets max(position)+1; reads only ORDER BY position, so
+// gaps are harmless, and moving a single row can't collide with UNIQUE (workout_id, position).
+func (h *Handler) later(w http.ResponseWriter, r *http.Request) {
+	uid, _ := auth.UserID(r.Context())
+	ctx := r.Context()
+	id, exerciseID := r.PathValue("id"), r.PathValue("exerciseID")
+
+	err := pgx.BeginFunc(ctx, h.DB, func(tx pgx.Tx) error {
+		if _, err := lockOpenExercise(ctx, tx, uid, id, exerciseID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `
+			UPDATE workout_exercises we
+			SET position = m.max_pos + 1
+			FROM (SELECT max(position) AS max_pos FROM workout_exercises WHERE workout_id = $1::uuid) m
+			WHERE we.workout_id = $1::uuid AND we.exercise_id = $2 AND we.position < m.max_pos`,
+			id, exerciseID)
+		if err != nil {
+			return fmt.Errorf("move exercise: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		writeTxError(w, "workout: do later", err)
+		return
+	}
+	wo, _, err := loadWorkout(ctx, h.DB, uid, id)
+	if err != nil {
+		httpx.InternalError(w, "workout: do later view", err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, wo)
 }
 
 func (h *Handler) logSet(w http.ResponseWriter, r *http.Request) {
