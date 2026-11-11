@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"log"
 	"mime"
 	"net"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/sudhanshubhushan4535/calmfit/internal/httpx"
 )
 
 const (
@@ -53,16 +54,16 @@ func (h *Handler) RequireUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hash, ok := cookieHash(r)
 		if !ok {
-			writeError(w, http.StatusUnauthorized, "unauthorized")
+			httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 		uid, err := sessionUserID(r.Context(), h.DB, hash)
 		if errors.Is(err, pgx.ErrNoRows) {
-			writeError(w, http.StatusUnauthorized, "unauthorized")
+			httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 		if err != nil {
-			internalError(w, "session lookup", err)
+			httpx.InternalError(w, "auth: session lookup", err)
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, uid)))
@@ -72,76 +73,76 @@ func (h *Handler) RequireUser(next http.Handler) http.Handler {
 func (h *Handler) googleLogin(w http.ResponseWriter, r *http.Request) {
 	// Requiring JSON forces a CORS preflight for cross-site callers, which blocks login CSRF.
 	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "application/json" {
-		writeError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
+		httpx.WriteError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
 		return
 	}
 	var body struct {
 		Credential string `json:"credential"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(&body); err != nil || body.Credential == "" {
-		writeError(w, http.StatusBadRequest, "body must be {\"credential\": \"...\"}")
+		httpx.WriteError(w, http.StatusBadRequest, "body must be {\"credential\": \"...\"}")
 		return
 	}
 
 	id, err := h.Verifier.Verify(r.Context(), body.Credential)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid credential")
+		httpx.WriteError(w, http.StatusUnauthorized, "invalid credential")
 		return
 	}
 	if !id.EmailVerified {
-		writeError(w, http.StatusForbidden, "email not verified")
+		httpx.WriteError(w, http.StatusForbidden, "email not verified")
 		return
 	}
 
 	uid, err := upsertUser(r.Context(), h.DB, id)
 	if errors.Is(err, ErrUserDeleted) {
-		writeError(w, http.StatusForbidden, "account deleted")
+		httpx.WriteError(w, http.StatusForbidden, "account deleted")
 		return
 	}
 	if err != nil {
-		internalError(w, "upsert user", err)
+		httpx.InternalError(w, "auth: upsert user", err)
 		return
 	}
 
 	token := make([]byte, tokenBytes)
 	if _, err := rand.Read(token); err != nil {
-		internalError(w, "generate token", err)
+		httpx.InternalError(w, "auth: generate token", err)
 		return
 	}
 	hash := sha256.Sum256(token)
 	if err := createSession(r.Context(), h.DB, hash[:], uid); err != nil {
-		internalError(w, "create session", err)
+		httpx.InternalError(w, "auth: create session", err)
 		return
 	}
 	http.SetCookie(w, sessionCookie(r, base64.RawURLEncoding.EncodeToString(token), int(sessionTTL.Seconds())))
 
 	u, err := getUser(r.Context(), h.DB, uid)
 	if err != nil {
-		internalError(w, "load user", err)
+		httpx.InternalError(w, "auth: load user", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, u)
+	httpx.WriteJSON(w, http.StatusOK, u)
 }
 
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	uid, _ := UserID(r.Context())
 	u, err := getUser(r.Context(), h.DB, uid)
 	if errors.Is(err, pgx.ErrNoRows) { // deleted between the session check and now
-		writeError(w, http.StatusUnauthorized, "unauthorized")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	if err != nil {
-		internalError(w, "load user", err)
+		httpx.InternalError(w, "auth: load user", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, u)
+	httpx.WriteJSON(w, http.StatusOK, u)
 }
 
 // logout is idempotent: it deletes the session if there is one and always clears the cookie.
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	if hash, ok := cookieHash(r); ok {
 		if err := deleteSession(r.Context(), h.DB, hash); err != nil {
-			internalError(w, "delete session", err)
+			httpx.InternalError(w, "auth: delete session", err)
 			return
 		}
 	}
@@ -182,19 +183,4 @@ func isLocalhost(host string) bool {
 	}
 	host = strings.Trim(host, "[]")
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
-}
-
-func writeError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
-}
-
-func internalError(w http.ResponseWriter, op string, err error) {
-	log.Printf("auth: %s: %v", op, err)
-	writeError(w, http.StatusInternalServerError, "internal error")
 }

@@ -25,6 +25,16 @@
   <pre id="out">loading…</pre>
   <button id="logout" type="button">Log out</button>
 
+  <h2>Program</h2>
+  <label>Days per week
+    <select id="days">
+      <option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option>
+    </select>
+  </label>
+  <button id="onboard" type="button">Save</button>
+  <button id="next" type="button">Next workout</button>
+  <pre id="program">—</pre>
+
   <script src="https://accounts.google.com/gsi/client" async></script>
   <script>
     const out = document.getElementById('out');
@@ -53,6 +63,28 @@
       await fetch('/auth/logout', { method: 'POST' });
       if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
       await showMe();
+    });
+
+    const programOut = document.getElementById('program');
+
+    async function showResponse(r) {
+      const text = await r.text();
+      let pretty = text;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      programOut.textContent = r.status + '\n' + pretty;
+    }
+
+    document.getElementById('onboard').addEventListener('click', async () => {
+      const days = Number(document.getElementById('days').value);
+      await showResponse(await fetch('/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days_per_week: days }),
+      }));
+    });
+
+    document.getElementById('next').addEventListener('click', async () => {
+      await showResponse(await fetch('/workouts/next'));
     });
 
     showMe();

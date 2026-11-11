@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -20,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
+	"github.com/sudhanshubhushan4535/calmfit/internal/testutil"
 )
 
 // fakeVerifier accepts only the credentials registered in ids.
@@ -53,15 +53,7 @@ type env struct {
 
 func setup(t *testing.T) *env {
 	t.Helper()
-	dsn := os.Getenv("TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("TEST_DATABASE_URL not set: skipping DB-backed auth tests (run `make test-db`, then `make test`)")
-	}
-	db, err := pgxpool.New(context.Background(), dsn)
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-	t.Cleanup(db.Close)
+	db := testutil.DB(t) // fails (never skips) if TEST_DATABASE_URL is unset; skips only with -short
 
 	b := make([]byte, 6)
 	_, _ = rand.Read(b)

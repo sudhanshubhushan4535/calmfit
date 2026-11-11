@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
-	"github.com/sudhanshubhushan4535/calmfit/internal/web"
+	"github.com/sudhanshubhushan4535/calmfit/internal/server"
 )
 
 const addr = ":8080"
@@ -48,13 +48,9 @@ func run() error {
 		return fmt.Errorf("db ping: %w", err)
 	}
 
-	mux := http.NewServeMux()
-	(&auth.Handler{DB: pool, Verifier: auth.GoogleVerifier{ClientID: clientID}}).Register(mux)
-	mux.HandleFunc("GET /{$}", web.Index(clientID))
-
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           server.New(pool, auth.GoogleVerifier{ClientID: clientID}, clientID),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

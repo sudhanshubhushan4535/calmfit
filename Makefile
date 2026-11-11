@@ -23,11 +23,12 @@ seed:
 run:
 	go run ./cmd/api
 
-# Create calmfit_test on the compose Postgres if missing, then migrate it to latest
+# Create calmfit_test on the compose Postgres if missing, migrate it, and load the seed (idempotent)
 test-db:
 	docker compose exec -T postgres psql -U calmfit -d calmfit -tAc "SELECT 1 FROM pg_database WHERE datname = 'calmfit_test'" | grep -q 1 \
 		|| docker compose exec -T postgres createdb -U calmfit calmfit_test
 	DATABASE_URL="$(TEST_DATABASE_URL)" go run ./cmd/migrate up
+	DATABASE_URL="$(TEST_DATABASE_URL)" go run ./cmd/seed
 
 # .env is exported above, so DB-backed tests see TEST_DATABASE_URL
 test:
