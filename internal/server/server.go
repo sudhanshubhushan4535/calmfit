@@ -9,6 +9,7 @@ import (
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/program"
 	"github.com/sudhanshubhushan4535/calmfit/internal/web"
+	"github.com/sudhanshubhushan4535/calmfit/internal/workout"
 )
 
 // New returns the app's router.
@@ -17,6 +18,7 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string) http.Handler {
 	a := &auth.Handler{DB: db, Verifier: v}
 	a.Register(mux)
 	(&program.Handler{DB: db}).Register(mux, a.RequireUser)
+	(&workout.Handler{DB: db}).Register(mux, a.RequireUser)
 	mux.HandleFunc("GET /{$}", web.Index(clientID))
 	return mux
 }

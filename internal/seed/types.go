@@ -13,6 +13,7 @@ type Exercise struct {
 	MuscleSize     string   `json:"muscle_size"`
 	RepScheme      string   `json:"rep_scheme"`
 	RepStep        int      `json:"rep_step"`
+	WeightStepG    int      `json:"weight_step_g"` // grams per weight change (R2)
 	ImagePaths     []string `json:"image_paths"`
 	Instructions   []string `json:"instructions"`
 }

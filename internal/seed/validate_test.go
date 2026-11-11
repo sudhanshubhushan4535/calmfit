@@ -116,3 +116,15 @@ func TestCoverage(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateExercise(t *testing.T) {
+	for _, step := range []int{0, -2500} {
+		err := ValidateExercise(Exercise{ID: "bench", WeightStepG: step})
+		if err == nil || !strings.Contains(err.Error(), "weight_step_g must be > 0") {
+			t.Fatalf("step %d: err = %v, want weight_step_g error", step, err)
+		}
+	}
+	if err := ValidateExercise(Exercise{ID: "bench", WeightStepG: 2500}); err != nil {
+		t.Fatalf("valid step: %v", err)
+	}
+}

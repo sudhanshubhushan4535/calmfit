@@ -10,11 +10,11 @@ import (
 
 // Seed-like configs covering every equipment type, both sizes, both movements and both schemes.
 var (
-	squat    = Config{ExerciseID: "Barbell_Squat", Equipment: "barbell", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 2}
-	calf     = Config{ExerciseID: "Seated_Calf_Raise", Equipment: "machine", Size: Big, Movement: Isolation, Scheme: HighRep, RepStep: 3}
-	pulldown = Config{ExerciseID: "Close-Grip_Front_Lat_Pulldown", Equipment: "cable", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 2}
-	lateral  = Config{ExerciseID: "Side_Lateral_Raise", Equipment: "dumbbell", Size: Small, Movement: Isolation, Scheme: Standard, RepStep: 2}
-	shoulder = Config{ExerciseID: "Dumbbell_Shoulder_Press", Equipment: "dumbbell", Size: Small, Movement: Compound, Scheme: Standard, RepStep: 2}
+	squat    = Config{ExerciseID: "Barbell_Squat", Equipment: "barbell", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 2, WeightStepG: 2500}
+	calf     = Config{ExerciseID: "Seated_Calf_Raise", Equipment: "machine", Size: Big, Movement: Isolation, Scheme: HighRep, RepStep: 3, WeightStepG: 5000}
+	pulldown = Config{ExerciseID: "Close-Grip_Front_Lat_Pulldown", Equipment: "cable", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 2, WeightStepG: 5000}
+	lateral  = Config{ExerciseID: "Side_Lateral_Raise", Equipment: "dumbbell", Size: Small, Movement: Isolation, Scheme: Standard, RepStep: 2, WeightStepG: 2500}
+	shoulder = Config{ExerciseID: "Dumbbell_Shoulder_Press", Equipment: "dumbbell", Size: Small, Movement: Compound, Scheme: Standard, RepStep: 2, WeightStepG: 2500}
 )
 
 var day0 = time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)

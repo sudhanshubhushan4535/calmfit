@@ -6,6 +6,14 @@ import (
 	"slices"
 )
 
+// ValidateExercise checks one catalog entry's own fields.
+func ValidateExercise(e Exercise) error {
+	if e.WeightStepG <= 0 {
+		return fmt.Errorf("exercise %s: weight_step_g must be > 0, got %d", e.ID, e.WeightStepG)
+	}
+	return nil
+}
+
 // Validate checks a template against the catalog and returns every violation joined.
 func Validate(t Template, catalog map[string]Exercise) error {
 	var errs []error

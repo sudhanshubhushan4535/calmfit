@@ -20,17 +20,22 @@ Every exercise has **3 working sets**. Rep targets come from the exercise's rep 
 | `high_rep` | 18 | 3 | 18 / 15 / 12 | 15 / 12 / 9 |
 
 `rep_step` comes from the exercise config and must match its scheme; a mismatch is a config error.
+`progression.Targets` is the only place these numbers live; the API and test page read them from it.
 
 ## R2. Weight step
-| Equipment | Step | Lightest option |
+Each exercise stores its step as `weight_step_g` (integer grams). The engine uses that value and
+never guesses one; a step ≤ 0 is a config error. The seed fills it with these defaults:
+
+| Equipment | Seeded step | Lightest option |
 |---|---|---|
 | barbell | 2.5 kg | 20 kg (empty bar) |
-| dumbbell | 2.5 kg (per dumbbell) | 2.5 kg |
-| machine | 5 kg (one pin) | 5 kg |
-| cable | 5 kg (one pin) | 5 kg |
+| dumbbell | 2.5 kg (per dumbbell) | one step |
+| machine | 5 kg (one pin) | one step |
+| cable | 5 kg (one pin) | one step |
 
-Any other equipment is an error. The engine never guesses a step. Internally, weights are
-**integer grams**, so 2.5 kg is 2500 and no float drift can creep in.
+The lightest option depends on the equipment: the 20 kg bar for barbells, otherwise one step.
+Any other equipment is an error. Internally, weights are **integer grams**, so 2.5 kg is 2500
+and no float drift can creep in.
 
 ## R3. Ascending weights
 Set 1 is the session's **base weight W**. Sets go W / W+step / W+2·step, except for the

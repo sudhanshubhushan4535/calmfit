@@ -3,15 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CalmFit sign-in test</title>
+  <title>CalmFit test page</title>
   <style>
     body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
     pre { background: #f4f4f5; padding: 1rem; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
     button { margin-top: 1rem; }
+    .card { border: 1px solid #d4d4d8; border-radius: 8px; padding: .75rem 1rem; margin: 1rem 0; }
+    .card h3 { margin: 0 0 .25rem; font-size: 1.05rem; }
+    .muted { color: #71717a; font-size: .9rem; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .4rem 0; }
+    .row button, .card button { margin-top: 0; }
+    .row .val { min-width: 4.5rem; text-align: center; font-variant-numeric: tabular-nums; }
+    .done { color: #15803d; }
+    .err { color: #b91c1c; white-space: pre-wrap; }
   </style>
 </head>
 <body>
-  <h1>CalmFit sign-in test</h1>
+  <h1>CalmFit test page</h1>
   <p>Manual testing only. Sign in with Google, then the result of <code>GET /me</code> appears below.</p>
 
   <div id="g_id_onload"
@@ -34,6 +42,11 @@
   <button id="onboard" type="button">Save</button>
   <button id="next" type="button">Next workout</button>
   <pre id="program">—</pre>
+
+  <h2>Workout</h2>
+  <button id="start" type="button">Start / resume workout</button>
+  <div id="workout"></div>
+  <p id="werr" class="err"></p>
 
   <script src="https://accounts.google.com/gsi/client" async></script>
   <script>
@@ -86,6 +99,131 @@
     document.getElementById('next').addEventListener('click', async () => {
       await showResponse(await fetch('/workouts/next'));
     });
+
+
+    // ---- Workout: start, log sets with +/- controls, finish, next-time screen ----
+    const wEl = document.getElementById('workout');
+    const wErr = document.getElementById('werr');
+    const kg = g => String(g / 1000);
+    let wo = null;          // current workout view
+    const drafts = {};      // `${exerciseID}:${setNumber}` -> {weight_g, reps} being edited
+
+    async function api(method, path, body) {
+      const opts = { method, headers: {} };
+      if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+      const r = await fetch(path, opts);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(method + ' ' + path + ' → ' + r.status + ' ' + (data.error || ''));
+      return data;
+    }
+
+    async function run(fn) {
+      wErr.textContent = '';
+      try { await fn(); } catch (e) { wErr.textContent = e.message; }
+    }
+
+    function el(tag, attrs = {}, ...kids) {
+      const n = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v);
+      }
+      for (const k of kids) n.append(k);
+      return n;
+    }
+
+    function replaceExercise(ex) {
+      wo.exercises = wo.exercises.map(e => e.id === ex.id ? ex : e);
+      renderWorkout();
+    }
+
+    function renderWorkout() {
+      wEl.replaceChildren(el('p', {}, `${wo.day} (day ${wo.day_index}) · ${wo.status} · started ${new Date(wo.started_at).toLocaleTimeString()}`));
+      for (const ex of wo.exercises) wEl.append(renderExercise(ex));
+      wEl.append(el('button', { type: 'button', onclick: () => run(finish) }, 'Finish workout'));
+    }
+
+    function renderExercise(ex) {
+      const card = el('div', { class: 'card' },
+        el('h3', {}, ex.name),
+        el('div', { class: 'muted' }, `${ex.equipment} · ${ex.target_muscle} · step ${kg(ex.weight_step_g)} kg · reps ${ex.rep_targets.join('/')}`));
+
+      if (ex.needs_usual_weight) {
+        const input = el('input', { type: 'number', step: '0.5', min: '0', placeholder: 'usual kg', style: 'width:6rem' });
+        const send = body => run(async () => replaceExercise(await api('POST', `/workouts/${wo.id}/exercises/${ex.id}/cold-start`, body)));
+        card.append(el('div', { class: 'row' }, 'No history. Your usual set-1 weight:', input,
+          el('button', { type: 'button', onclick: () => send({ usual_kg: Number(input.value) }) }, 'Set'),
+          el('button', { type: 'button', onclick: () => send({ dont_know: true }) }, "Don't know")));
+        return card;
+      }
+
+      card.append(el('div', {}, ex.plan.summary));
+      if (ex.plan.warmups.length) {
+        card.append(el('div', { class: 'muted' }, 'Warm-ups: ' + ex.plan.warmups.map(w => `${kg(w.weight_g)} kg × ${w.reps}`).join(', ')));
+      }
+      // Logged sets show what was done; the next set gets +/- controls prefilled from the remaining targets.
+      // Logged sets can be re-opened for editing (the API upserts by set number).
+      const logged = ex.sets.length;
+      for (let n = 1; n <= 3; n++) {
+        const done = ex.sets[n - 1];
+        const target = n > logged ? ex.remaining[n - 1 - logged] : ex.plan.sets[n - 1];
+        const key = ex.id + ':' + n;
+        if (done && !drafts[key]) {
+          card.append(el('div', { class: 'row done' },
+            `Set ${n}: ${kg(done.weight_g)} kg × ${done.reps}  ✓`,
+            el('button', { type: 'button', onclick: () => { drafts[key] = { weight_g: done.weight_g, reps: done.reps }; renderWorkout(); } }, 'Edit')));
+          continue;
+        }
+        if (n > logged + 1) {
+          card.append(el('div', { class: 'row muted' }, `Set ${n}: ${kg(target.weight_g)} kg × ${target.reps}`));
+          continue;
+        }
+        const d = drafts[key] ||= { weight_g: target.weight_g, reps: target.reps };
+        const bump = (field, delta, min) => () => { d[field] = Math.max(min, d[field] + delta); renderWorkout(); };
+        card.append(el('div', { class: 'row' },
+          `Set ${n}:`,
+          el('button', { type: 'button', onclick: bump('weight_g', -ex.weight_step_g, ex.weight_step_g) }, '−'),
+          el('span', { class: 'val' }, kg(d.weight_g) + ' kg'),
+          el('button', { type: 'button', onclick: bump('weight_g', ex.weight_step_g, 0) }, '+'),
+          el('button', { type: 'button', onclick: bump('reps', -1, 1) }, '−'),
+          el('span', { class: 'val' }, d.reps + ' reps'),
+          el('button', { type: 'button', onclick: () => { d.reps = Math.min(50, d.reps + 1); renderWorkout(); } }, '+'),
+          el('button', { type: 'button', onclick: () => run(async () => {
+            const updated = await api('POST', `/workouts/${wo.id}/sets`, { exercise_id: ex.id, set_number: n, weight_g: d.weight_g, reps: d.reps });
+            delete drafts[key];
+            // Drop drafts of later sets so they re-prefill from the new remaining targets.
+            for (let m = n + 1; m <= 3; m++) delete drafts[ex.id + ':' + m];
+            replaceExercise(updated);
+          }) }, 'Log')));
+        if (target.why) card.append(el('div', { class: 'muted' }, target.why));
+      }
+      return card;
+    }
+
+    async function finish() {
+      const sum = await api('POST', `/workouts/${wo.id}/complete`);
+      wo = null;
+      for (const k of Object.keys(drafts)) delete drafts[k];
+      const sets = ss => ss.map(s => `${kg(s.weight_g)}×${s.reps}`).join(' / ');
+      wEl.replaceChildren(el('h3', {}, `Next time · ${sum.day} done`));
+      for (const ex of sum.exercises) {
+        const card = el('div', { class: 'card' }, el('h3', {}, ex.name));
+        if (ex.skipped) {
+          card.append(el('div', { class: 'muted' }, 'Skipped: no sets logged.'));
+        } else {
+          card.append(
+            el('div', {}, 'Target: ' + sets(ex.this_session.plan.sets)),
+            el('div', {}, 'Done: ' + sets(ex.this_session.done)),
+            el('div', {}, el('b', {}, 'Next: ' + sets(ex.next.sets))),
+            el('div', { class: 'muted' }, ex.next.summary));
+        }
+        wEl.append(card);
+      }
+    }
+
+    document.getElementById('start').addEventListener('click', () => run(async () => {
+      wo = await api('POST', '/workouts/start');
+      renderWorkout();
+    }));
 
     showMe();
   </script>

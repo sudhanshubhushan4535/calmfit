@@ -15,6 +15,7 @@ import (
 	"github.com/sudhanshubhushan4535/calmfit/internal/program"
 	"github.com/sudhanshubhushan4535/calmfit/internal/server"
 	"github.com/sudhanshubhushan4535/calmfit/internal/testutil"
+	"github.com/sudhanshubhushan4535/calmfit/internal/workout"
 )
 
 type env struct {
@@ -73,20 +74,20 @@ func mustOnboard(t *testing.T, e *env, c *http.Client, days int) program.Program
 	return p
 }
 
-func mustNext(t *testing.T, e *env, c *http.Client) program.Workout {
+func mustNext(t *testing.T, e *env, c *http.Client) workout.Preview {
 	t.Helper()
 	status, body := e.next(t, c)
 	if status != http.StatusOK {
 		t.Fatalf("next: status %d body %s", status, body)
 	}
-	var w program.Workout
+	var w workout.Preview
 	if err := json.Unmarshal([]byte(body), &w); err != nil {
 		t.Fatalf("decode workout: %v (%s)", err, body)
 	}
 	return w
 }
 
-// setLastCompleted stands in for Day 2's "complete workout" endpoint.
+// setLastCompleted moves the rotation directly, so these tests don't depend on the workout flow.
 func setLastCompleted(t *testing.T, e *env, name string, idx int) {
 	t.Helper()
 	tag, err := e.db.Exec(context.Background(), `
@@ -99,7 +100,7 @@ func setLastCompleted(t *testing.T, e *env, name string, idx int) {
 
 func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
 
-func ids(w program.Workout) []string {
+func ids(w workout.Preview) []string {
 	out := make([]string, len(w.Exercises))
 	for i, ex := range w.Exercises {
 		out[i] = ex.ID
@@ -178,6 +179,10 @@ func TestNextAfterOnboardingIsPush(t *testing.T) {
 	for _, ex := range w.Exercises {
 		if !slices.Equal(ex.RepTargets, []int{12, 10, 8}) || ex.Name == "" || ex.TargetMuscle == "" || ex.MovementType == "" {
 			t.Fatalf("exercise %+v: want filled fields and rep targets [12 10 8]", ex)
+		}
+		// No history yet: every exercise asks for the usual weight instead of previewing one.
+		if !ex.NeedsUsualWeight || ex.Plan != nil || ex.WeightStepG <= 0 {
+			t.Fatalf("exercise %s: needs_usual_weight=%v plan=%v step=%d, want true/nil/>0", ex.ID, ex.NeedsUsualWeight, ex.Plan, ex.WeightStepG)
 		}
 	}
 	if w.Exercises[0].TargetMuscle != "upper_chest" || w.Exercises[0].MovementType != "compound" {

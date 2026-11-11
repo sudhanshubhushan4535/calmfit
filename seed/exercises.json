@@ -14,6 +14,7 @@
     "muscle_size": "big",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 2500,
     "image_paths": [],
     "instructions": [
       "Lie back on an incline bench with a dumbbell in each hand atop your thighs. The palms of your hands will be facing each other.",
@@ -40,6 +41,7 @@
     "muscle_size": "big",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 5000,
     "image_paths": [],
     "instructions": [
       "Sit on the machine with your back flat on the pad.",
@@ -64,6 +66,7 @@
     "muscle_size": "small",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 2500,
     "image_paths": [],
     "instructions": [
       "While holding a dumbbell in each hand, sit on a military press bench or utility bench that has back support. Place the dumbbells upright on top of your thighs.",
@@ -89,6 +92,7 @@
     "muscle_size": "small",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 2500,
     "image_paths": [],
     "instructions": [
       "Pick a couple of dumbbells and stand with a straight torso and the dumbbells by your side at arms length with the palms of the hand facing you. This will be your starting position.",
@@ -112,6 +116,7 @@
     "muscle_size": "small",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 5000,
     "image_paths": [],
     "instructions": [
       "Attach a straight or angled bar to a high pulley and grab with an overhand grip (palms facing down) at shoulder width.",
@@ -136,6 +141,7 @@
     "muscle_size": "big",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 5000,
     "image_paths": [],
     "instructions": [
       "Sit down on a pull-down machine with a wide bar attached to the top pulley. Make sure that you adjust the knee pad of the machine to fit your height. These pads will prevent your body from being raised by the resistance attached to the bar.",
@@ -161,6 +167,7 @@
     "muscle_size": "big",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 5000,
     "image_paths": [],
     "instructions": [
       "For this exercise you will need access to a low pulley row machine with a V-bar. Note: The V-bar will enable you to have a neutral grip where the palms of your hands face each other. To get into the starting position, first sit down on the machine and place your feet on the front platform or crossbar provided making sure that your knees are slightly bent and not locked.",
@@ -185,6 +192,7 @@
     "muscle_size": "small",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 2500,
     "image_paths": [],
     "instructions": [
       "Grasp a barbell with an overhand grip that is slightly less than shoulder width. The bar should be resting on the top of your thighs with your arms extended and a slight bend in your elbows. Your back should also be straight. This will be your starting position.",
@@ -208,6 +216,7 @@
     "muscle_size": "small",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 5000,
     "image_paths": [],
     "instructions": [
       "Adjust the handles so that they are fully to the rear. Make an appropriate weight selection and adjust the seat height so the handles are at shoulder level. Grasp the handles with your hands facing inwards. This will be your starting position.",
@@ -231,6 +240,7 @@
     "muscle_size": "small",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 2500,
     "image_paths": [],
     "instructions": [
       "Stand up with your torso upright and a dumbbell on each hand being held at arms length. The elbows should be close to the torso.",
@@ -255,6 +265,7 @@
     "muscle_size": "small",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 2500,
     "image_paths": [],
     "instructions": [
       "Grab a dumbbell with each arm and place the upper arms on top of the preacher bench or the incline bench. The dumbbell should be held at shoulder length. This will be your starting position.",
@@ -278,6 +289,7 @@
     "muscle_size": "big",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 2500,
     "image_paths": [],
     "instructions": [
       "This exercise is best performed inside a squat rack for safety purposes. To begin, first set the bar on a rack to just below shoulder level. Once the correct height is chosen and the bar is loaded, step under the bar and place the back of your shoulders (slightly below the neck) across it.",
@@ -303,6 +315,7 @@
     "muscle_size": "big",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 2500,
     "image_paths": [],
     "instructions": [
       "Begin seated on the ground with a bench directly behind you. Have a loaded barbell over your legs. Using a fat bar or having a pad on the bar can greatly reduce the discomfort caused by this exercise.",
@@ -325,6 +338,7 @@
     "muscle_size": "big",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 5000,
     "image_paths": [],
     "instructions": [
       "Adjust the machine lever to fit your height and sit on the machine with your back against the back support pad.",
@@ -349,6 +363,7 @@
     "muscle_size": "big",
     "rep_scheme": "standard",
     "rep_step": 2,
+    "weight_step_g": 5000,
     "image_paths": [],
     "instructions": [
       "For this exercise you will need to use a leg extension machine. First choose your weight and sit on the machine with your legs under the pad (feet pointed forward) and the hands holding the side bars. This will be your starting position. Tip: You will need to adjust the pad so that it falls on top of your lower leg (just above your feet). Also, make sure that your legs form a 90-degree angle between the lower and upper leg. If the angle is less than 90-degrees then that means the knee is over the toes which in turn creates undue stress at the knee joint. If the machine is designed that way, either look for another machine or just make sure that when you start executing the exercise you stop going down once you hit the 90-degree angle.",
@@ -372,6 +387,7 @@
     "muscle_size": "big",
     "rep_scheme": "high_rep",
     "rep_step": 3,
+    "weight_step_g": 5000,
     "image_paths": [],
     "instructions": [
       "Sit on the machine and place your toes on the lower portion of the platform provided with the heels extending off. Choose the toe positioning of your choice (forward, in, or out) as per the beginning of this chapter.",

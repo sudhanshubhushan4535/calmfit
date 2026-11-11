@@ -58,17 +58,16 @@ type Config struct {
 	Movement   Movement
 	Scheme     RepScheme
 	RepStep    int
+	// WeightStepG is the exercise's weight step in grams, stored per exercise (R2).
+	WeightStepG int
 }
 
-// StepFor returns the weight step in grams for an equipment type (R2).
-func StepFor(equipment string) (int, error) {
-	switch equipment {
-	case "barbell", "dumbbell":
-		return 2500, nil
-	case "machine", "cable":
-		return 5000, nil
+func knownEquipment(e string) bool {
+	switch e {
+	case "barbell", "dumbbell", "machine", "cable":
+		return true
 	}
-	return 0, fmt.Errorf("%w: no weight step for equipment %q", ErrConfig, equipment)
+	return false
 }
 
 // lightestFor is the "don't know" start and the floor for drops and warm-ups (R2).
@@ -127,10 +126,13 @@ func (c Config) rules() (rules, error) {
 	if c.Movement != Compound && c.Movement != Isolation {
 		return rules{}, fmt.Errorf("%w: unknown movement type %q", ErrConfig, c.Movement)
 	}
-	step, err := StepFor(c.Equipment)
-	if err != nil {
-		return rules{}, err
+	if !knownEquipment(c.Equipment) {
+		return rules{}, fmt.Errorf("%w: unknown equipment %q", ErrConfig, c.Equipment)
 	}
+	if c.WeightStepG <= 0 {
+		return rules{}, fmt.Errorf("%w: weight step must be > 0, got %d g", ErrConfig, c.WeightStepG)
+	}
+	step := c.WeightStepG
 	return rules{cfg: c, top: top, repStep: c.RepStep, step: step, lightest: lightestFor(c.Equipment, step)}, nil
 }
 

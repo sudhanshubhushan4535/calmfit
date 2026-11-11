@@ -34,27 +34,26 @@ func TestR1_Targets(t *testing.T) {
 	}
 }
 
-// R2: weight step per equipment.
-func TestR2_StepFor(t *testing.T) {
-	tests := []struct {
-		equipment string
-		want      int
-		wantErr   bool
-	}{
-		{"barbell", 2500, false},
-		{"dumbbell", 2500, false},
-		{"machine", 5000, false},
-		{"cable", 5000, false},
-		{"kettlebells", 0, true},
-		{"body only", 0, true},
-		{"", 0, true},
-	}
-	for _, tt := range tests {
-		got, err := StepFor(tt.equipment)
-		if got != tt.want || (err != nil) != tt.wantErr || (err != nil && !errors.Is(err, ErrConfig)) {
-			t.Errorf("StepFor(%q) = %d, %v; want %d, err=%v", tt.equipment, got, err, tt.want, tt.wantErr)
-		}
-	}
+// R2: the weight step comes from the exercise config; the lightest option from the equipment.
+func TestR2_WeightStep(t *testing.T) {
+	odd := squat
+	odd.WeightStepG = g(1.25) // a per-exercise step overrides the seeded default
+	oddMachine := calf
+	oddMachine.WeightStepG = g(2.5)
+	runRuleTable(t, []ruleCase{
+		{name: "configured barbell step 1.25 kg", cfg: odd, cold: usual(60),
+			want: want{weights: []float64{60, 61.25, 62.5}}},
+		{name: "configured machine step 2.5 kg", cfg: oddMachine, cold: usual(40),
+			want: want{weights: []float64{40, 42.5, 45}}},
+		{name: "barbell lightest is the 20 kg bar", cfg: squat, cold: ColdStart{DontKnow: true},
+			want: want{weights: []float64{20, 22.5, 25}}},
+		{name: "dumbbell lightest is one step", cfg: lateral, cold: ColdStart{DontKnow: true},
+			want: want{weights: []float64{2.5, 5, 7.5}}},
+		{name: "machine lightest is one step", cfg: calf, cold: ColdStart{DontKnow: true},
+			want: want{weights: []float64{5, 10, 15}}},
+		{name: "configured machine lightest is its own step", cfg: oddMachine, cold: ColdStart{DontKnow: true},
+			want: want{weights: []float64{2.5, 5, 7.5}}},
+	})
 }
 
 // R3: weights ascend one step per set; covered on every plan by checkInvariants, plus explicit rows.
@@ -450,11 +449,13 @@ func TestR15_Validation(t *testing.T) {
 		cold    ColdStart
 		wantErr error
 	}{
-		{"unknown equipment", Config{Equipment: "kettlebells", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 2}, nil, usual(10), ErrConfig},
-		{"unknown scheme", Config{Equipment: "barbell", Size: Big, Movement: Compound, Scheme: "pyramid", RepStep: 2}, nil, usual(10), ErrConfig},
-		{"rep_step does not match scheme", Config{Equipment: "barbell", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 3}, nil, usual(10), ErrConfig},
-		{"unknown size", Config{Equipment: "barbell", Size: "medium", Movement: Compound, Scheme: Standard, RepStep: 2}, nil, usual(10), ErrConfig},
-		{"unknown movement", Config{Equipment: "barbell", Size: Big, Scheme: Standard, RepStep: 2}, nil, usual(10), ErrConfig},
+		{"unknown equipment", Config{Equipment: "kettlebells", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 2, WeightStepG: 2500}, nil, usual(10), ErrConfig},
+		{"unknown scheme", Config{Equipment: "barbell", Size: Big, Movement: Compound, Scheme: "pyramid", RepStep: 2, WeightStepG: 2500}, nil, usual(10), ErrConfig},
+		{"rep_step does not match scheme", Config{Equipment: "barbell", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 3, WeightStepG: 2500}, nil, usual(10), ErrConfig},
+		{"unknown size", Config{Equipment: "barbell", Size: "medium", Movement: Compound, Scheme: Standard, RepStep: 2, WeightStepG: 2500}, nil, usual(10), ErrConfig},
+		{"unknown movement", Config{Equipment: "barbell", Size: Big, Scheme: Standard, RepStep: 2, WeightStepG: 2500}, nil, usual(10), ErrConfig},
+		{"weight step 0", Config{Equipment: "barbell", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 2}, nil, usual(10), ErrConfig},
+		{"negative weight step", Config{Equipment: "cable", Size: Big, Movement: Compound, Scheme: Standard, RepStep: 2, WeightStepG: -5000}, nil, usual(10), ErrConfig},
 		{"cold start without weight or don't know", squat, nil, ColdStart{}, ErrInvalidInput},
 		{"cold start with negative weight", squat, nil, usual(-5), ErrInvalidInput},
 		{"weight 0", squat, mutate(func(h []Session) { h[1].Done[0].WeightG = 0 }), ColdStart{}, ErrInvalidInput},
