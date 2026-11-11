@@ -23,8 +23,7 @@ func day(s string) time.Time {
 	return t
 }
 
-// The spec's five example days score 6/6/7/5/4. The spec's meal breakdowns weren't available,
-// so these are combinations that produce those totals (docs/DECISIONS.md D5).
+// The five example days from docs/BUILD_SPEC.md ("Plate check and protein guide").
 func TestSpecExampleDays(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -33,11 +32,16 @@ func TestSpecExampleDays(t *testing.T) {
 		percent int
 		good    bool
 	}{
-		{"two full plates, skipped dinner", map[string]Check{"breakfast": both, "lunch": both}, 6, 66, true},
-		{"protein every meal, no fiber", map[string]Check{"breakfast": protein, "lunch": protein, "dinner": protein}, 6, 66, true},
-		{"protein every meal, fiber once", map[string]Check{"breakfast": both, "lunch": protein, "dinner": protein}, 7, 77, true},
-		{"one full plate, one protein", map[string]Check{"breakfast": both, "lunch": protein}, 5, 55, false},
-		{"protein once, fiber twice", map[string]Check{"breakfast": protein, "lunch": fiber, "dinner": fiber}, 4, 44, false},
+		{"Protein in all 3 meals, no fiber",
+			map[string]Check{"breakfast": protein, "lunch": protein, "dinner": protein}, 6, 66, true},
+		{"2 meals with both, 1 meal nothing",
+			map[string]Check{"breakfast": both, "lunch": both}, 6, 66, true},
+		{"Protein in all 3, fiber in 1",
+			map[string]Check{"breakfast": both, "lunch": protein, "dinner": protein}, 7, 77, true},
+		{"Fiber in all 3, protein in 1",
+			map[string]Check{"breakfast": both, "lunch": fiber, "dinner": fiber}, 5, 55, false},
+		{"Protein in 2 meals only",
+			map[string]Check{"breakfast": protein, "lunch": protein}, 4, 44, false},
 	}
 	for _, c := range cases {
 		d := Score(day("2026-11-10"), c.meals, cfg)

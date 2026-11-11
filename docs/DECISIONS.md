@@ -29,10 +29,9 @@ revisit any of them by changing the code, tests and this file together.
   offset would let dates be gamed.
 
 ### D5. The spec's 5 example days (6/6/7/5/4 points)
-- **Choice:** The spec's meal-by-meal breakdowns weren't available, so the tests use combinations
-  that score those totals: 6 good, 6 good, 7 good, 5 not, 4 not (threshold 6).
-- **Why:** Totals and verdicts are what the scoring has to get right; swap in the spec's exact
-  meals if they differ.
+- **Resolved:** `internal/plate/score_test.go` now uses the exact days from
+  `docs/BUILD_SPEC.md`: protein ×3; both ×2 + nothing; protein ×3 + fiber ×1; fiber ×3 +
+  protein ×1; protein ×2.
 
 ### D6. Which dates can be logged?
 - **Choice:** Today and up to 7 days back (local). Future dates → 400. GET ranges are at most
