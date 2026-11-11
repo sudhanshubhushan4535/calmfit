@@ -1,0 +1,77 @@
+[
+  {
+    "id": "ppl",
+    "name": "Push Pull Legs",
+    "days": [
+      "push",
+      "pull",
+      "legs"
+    ],
+    "exercises": [
+      {
+        "day": "push",
+        "exercise_id": "Incline_Dumbbell_Press"
+      },
+      {
+        "day": "push",
+        "exercise_id": "Butterfly"
+      },
+      {
+        "day": "push",
+        "exercise_id": "Dumbbell_Shoulder_Press"
+      },
+      {
+        "day": "push",
+        "exercise_id": "Side_Lateral_Raise"
+      },
+      {
+        "day": "push",
+        "exercise_id": "Triceps_Pushdown"
+      },
+      {
+        "day": "pull",
+        "exercise_id": "Close-Grip_Front_Lat_Pulldown"
+      },
+      {
+        "day": "pull",
+        "exercise_id": "Seated_Cable_Rows"
+      },
+      {
+        "day": "pull",
+        "exercise_id": "Upright_Barbell_Row"
+      },
+      {
+        "day": "pull",
+        "exercise_id": "Reverse_Machine_Flyes"
+      },
+      {
+        "day": "pull",
+        "exercise_id": "Hammer_Curls"
+      },
+      {
+        "day": "pull",
+        "exercise_id": "Two-Arm_Dumbbell_Preacher_Curl"
+      },
+      {
+        "day": "legs",
+        "exercise_id": "Barbell_Squat"
+      },
+      {
+        "day": "legs",
+        "exercise_id": "Barbell_Hip_Thrust"
+      },
+      {
+        "day": "legs",
+        "exercise_id": "Seated_Leg_Curl"
+      },
+      {
+        "day": "legs",
+        "exercise_id": "Leg_Extensions"
+      },
+      {
+        "day": "legs",
+        "exercise_id": "Seated_Calf_Raise"
+      }
+    ]
+  }
+]

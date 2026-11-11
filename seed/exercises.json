@@ -1,0 +1,385 @@
+[
+  {
+    "id": "Incline_Dumbbell_Press",
+    "name": "Incline Dumbbell Press",
+    "aliases": [
+      "incline dumbell"
+    ],
+    "equipment": "dumbbell",
+    "primary_muscles": [
+      "chest"
+    ],
+    "target_muscle": "upper_chest",
+    "movement_type": "compound",
+    "muscle_size": "big",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Lie back on an incline bench with a dumbbell in each hand atop your thighs. The palms of your hands will be facing each other.",
+      "Then, using your thighs to help push the dumbbells up, lift the dumbbells one at a time so that you can hold them at shoulder width.",
+      "Once you have the dumbbells raised to shoulder width, rotate your wrists forward so that the palms of your hands are facing away from you. This will be your starting position.",
+      "Be sure to keep full control of the dumbbells at all times. Then breathe out and push the dumbbells up with your chest.",
+      "Lock your arms at the top, hold for a second, and then start slowly lowering the weight. Tip Ideally, lowering the weights should take about twice as long as raising them.",
+      "Repeat the movement for the prescribed amount of repetitions.",
+      "When you are done, place the dumbbells back on your thighs and then on the floor. This is the safest manner to release the dumbbells."
+    ]
+  },
+  {
+    "id": "Butterfly",
+    "name": "Machine Chest Fly (Pec Deck)",
+    "aliases": [
+      "machine chest fly"
+    ],
+    "equipment": "machine",
+    "primary_muscles": [
+      "chest"
+    ],
+    "target_muscle": "mid_chest",
+    "movement_type": "isolation",
+    "muscle_size": "big",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Sit on the machine with your back flat on the pad.",
+      "Take hold of the handles. Tip: Your upper arms should be positioned parallel to the floor; adjust the machine accordingly. This will be your starting position.",
+      "Push the handles together slowly as you squeeze your chest in the middle. Breathe out during this part of the motion and hold the contraction for a second.",
+      "Return back to the starting position slowly as you inhale until your chest muscles are fully stretched.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Dumbbell_Shoulder_Press",
+    "name": "Dumbbell Shoulder Press",
+    "aliases": [
+      "shoulder dumbell press"
+    ],
+    "equipment": "dumbbell",
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "target_muscle": "front_delt",
+    "movement_type": "compound",
+    "muscle_size": "small",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "While holding a dumbbell in each hand, sit on a military press bench or utility bench that has back support. Place the dumbbells upright on top of your thighs.",
+      "Now raise the dumbbells to shoulder height one at a time using your thighs to help propel them up into position.",
+      "Make sure to rotate your wrists so that the palms of your hands are facing forward. This is your starting position.",
+      "Now, exhale and push the dumbbells upward until they touch at the top.",
+      "Then, after a brief pause at the top contracted position, slowly lower the weights back down to the starting position while inhaling.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Side_Lateral_Raise",
+    "name": "Dumbbell Lateral Raise",
+    "aliases": [
+      "dumbbell lateral raise"
+    ],
+    "equipment": "dumbbell",
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "target_muscle": "side_delt",
+    "movement_type": "isolation",
+    "muscle_size": "small",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Pick a couple of dumbbells and stand with a straight torso and the dumbbells by your side at arms length with the palms of the hand facing you. This will be your starting position.",
+      "While maintaining the torso in a stationary position (no swinging), lift the dumbbells to your side with a slight bend on the elbow and the hands slightly tilted forward as if pouring water in a glass. Continue to go up until you arms are parallel to the floor. Exhale as you execute this movement and pause for a second at the top.",
+      "Lower the dumbbells back down slowly to the starting position as you inhale.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Triceps_Pushdown",
+    "name": "Triceps Pushdown",
+    "aliases": [
+      "triceps pushdown"
+    ],
+    "equipment": "cable",
+    "primary_muscles": [
+      "triceps"
+    ],
+    "target_muscle": "triceps",
+    "movement_type": "isolation",
+    "muscle_size": "small",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Attach a straight or angled bar to a high pulley and grab with an overhand grip (palms facing down) at shoulder width.",
+      "Standing upright with the torso straight and a very small inclination forward, bring the upper arms close to your body and perpendicular to the floor. The forearms should be pointing up towards the pulley as they hold the bar. This is your starting position.",
+      "Using the triceps, bring the bar down until it touches the front of your thighs and the arms are fully extended perpendicular to the floor. The upper arms should always remain stationary next to your torso and only the forearms should move. Exhale as you perform this movement.",
+      "After a second hold at the contracted position, bring the bar slowly up to the starting point. Breathe in as you perform this step.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Close-Grip_Front_Lat_Pulldown",
+    "name": "Lat Pulldown (shoulder-width grip)",
+    "aliases": [
+      "lat pulldown"
+    ],
+    "equipment": "cable",
+    "primary_muscles": [
+      "lats"
+    ],
+    "target_muscle": "lats",
+    "movement_type": "compound",
+    "muscle_size": "big",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Sit down on a pull-down machine with a wide bar attached to the top pulley. Make sure that you adjust the knee pad of the machine to fit your height. These pads will prevent your body from being raised by the resistance attached to the bar.",
+      "Grab the bar with the palms facing forward using the prescribed grip. Note on grips: For a wide grip, your hands need to be spaced out at a distance wider than your shoulder width. For a medium grip, your hands need to be spaced out at a distance equal to your shoulder width and for a close grip at a distance smaller than your shoulder width.",
+      "As you have both arms extended in front of you - while holding the bar at the chosen grip width - bring your torso back around 30 degrees or so while creating a curvature on your lower back and sticking your chest out. This is your starting position.",
+      "As you breathe out, bring the bar down until it touches your upper chest by drawing the shoulders and the upper arms down and back. Tip: Concentrate on squeezing the back muscles once you reach the full contracted position. The upper torso should remain stationary (only the arms should move). The forearms should do no other work except for holding the bar; therefore do not try to pull the bar down using the forearms.",
+      "After a second in the contracted position, while squeezing your shoulder blades together, slowly raise the bar back to the starting position when your arms are fully extended and the lats are fully stretched. Inhale during this portion of the movement.",
+      "6. Repeat this motion for the prescribed amount of repetitions."
+    ]
+  },
+  {
+    "id": "Seated_Cable_Rows",
+    "name": "Seated Cable Row",
+    "aliases": [
+      "seated cable row"
+    ],
+    "equipment": "cable",
+    "primary_muscles": [
+      "middle back"
+    ],
+    "target_muscle": "mid_back",
+    "movement_type": "compound",
+    "muscle_size": "big",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "For this exercise you will need access to a low pulley row machine with a V-bar. Note: The V-bar will enable you to have a neutral grip where the palms of your hands face each other. To get into the starting position, first sit down on the machine and place your feet on the front platform or crossbar provided making sure that your knees are slightly bent and not locked.",
+      "Lean over as you keep the natural alignment of your back and grab the V-bar handles.",
+      "With your arms extended pull back until your torso is at a 90-degree angle from your legs. Your back should be slightly arched and your chest should be sticking out. You should be feeling a nice stretch on your lats as you hold the bar in front of you. This is the starting position of the exercise.",
+      "Keeping the torso stationary, pull the handles back towards your torso while keeping the arms close to it until you touch the abdominals. Breathe out as you perform that movement. At that point you should be squeezing your back muscles hard. Hold that contraction for a second and slowly go back to the original position while breathing in.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Upright_Barbell_Row",
+    "name": "Barbell Upright Row",
+    "aliases": [
+      "barbell upright row"
+    ],
+    "equipment": "barbell",
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "target_muscle": "upper_traps",
+    "movement_type": "compound",
+    "muscle_size": "small",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Grasp a barbell with an overhand grip that is slightly less than shoulder width. The bar should be resting on the top of your thighs with your arms extended and a slight bend in your elbows. Your back should also be straight. This will be your starting position.",
+      "Now exhale and use the sides of your shoulders to lift the bar, raising your elbows up and to the side. Keep the bar close to your body as you raise it. Continue to lift the bar until it nearly touches your chin. Tip: Your elbows should drive the motion, and should always be higher than your forearms. Remember to keep your torso stationary and pause for a second at the top of the movement.",
+      "Lower the bar back down slowly to the starting position. Inhale as you perform this portion of the movement.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Reverse_Machine_Flyes",
+    "name": "Rear Delt Machine Fly",
+    "aliases": [
+      "rear delt machine flyes"
+    ],
+    "equipment": "machine",
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "target_muscle": "rear_delt",
+    "movement_type": "isolation",
+    "muscle_size": "small",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Adjust the handles so that they are fully to the rear. Make an appropriate weight selection and adjust the seat height so the handles are at shoulder level. Grasp the handles with your hands facing inwards. This will be your starting position.",
+      "In a semicircular motion, pull your hands out to your side and back, contracting your rear delts.",
+      "Keep your arms slightly bent throughout the movement, with all of the motion occurring at the shoulder joint.",
+      "Pause at the rear of the movement, and slowly return the weight to the starting position."
+    ]
+  },
+  {
+    "id": "Hammer_Curls",
+    "name": "Hammer Curl",
+    "aliases": [
+      "hammer curl"
+    ],
+    "equipment": "dumbbell",
+    "primary_muscles": [
+      "biceps"
+    ],
+    "target_muscle": "brachialis",
+    "movement_type": "isolation",
+    "muscle_size": "small",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Stand up with your torso upright and a dumbbell on each hand being held at arms length. The elbows should be close to the torso.",
+      "The palms of the hands should be facing your torso. This will be your starting position.",
+      "Now, while holding your upper arm stationary, exhale and curl the weight forward while contracting the biceps. Continue to raise the weight until the biceps are fully contracted and the dumbbell is at shoulder level. Hold the contracted position for a brief moment as you squeeze the biceps. Tip: Focus on keeping the elbow stationary and only moving your forearm.",
+      "After the brief pause, inhale and slowly begin the lower the dumbbells back down to the starting position.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Two-Arm_Dumbbell_Preacher_Curl",
+    "name": "Dumbbell Preacher Curl",
+    "aliases": [
+      "dumbell preacher curl"
+    ],
+    "equipment": "dumbbell",
+    "primary_muscles": [
+      "biceps"
+    ],
+    "target_muscle": "biceps",
+    "movement_type": "isolation",
+    "muscle_size": "small",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Grab a dumbbell with each arm and place the upper arms on top of the preacher bench or the incline bench. The dumbbell should be held at shoulder length. This will be your starting position.",
+      "As you breathe in, slowly lower the dumbbells until your upper arm is extended and the biceps is fully stretched.",
+      "As you exhale, use the biceps to curl the weights up until your biceps is fully contracted and the dumbbells are at shoulder height.",
+      "Squeeze the biceps hard for a second at the contracted position and repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Barbell_Squat",
+    "name": "Barbell Squat",
+    "aliases": [
+      "squat"
+    ],
+    "equipment": "barbell",
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "target_muscle": "quads",
+    "movement_type": "compound",
+    "muscle_size": "big",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "This exercise is best performed inside a squat rack for safety purposes. To begin, first set the bar on a rack to just below shoulder level. Once the correct height is chosen and the bar is loaded, step under the bar and place the back of your shoulders (slightly below the neck) across it.",
+      "Hold on to the bar using both arms at each side and lift it off the rack by first pushing with your legs and at the same time straightening your torso.",
+      "Step away from the rack and position your legs using a shoulder width medium stance with the toes slightly pointed out. Keep your head up at all times and also maintain a straight back. This will be your starting position. (Note: For the purposes of this discussion we will use the medium stance described above which targets overall development; however you can choose any of the three stances discussed in the foot stances section).",
+      "Begin to slowly lower the bar by bending the knees and hips as you maintain a straight posture with the head up. Continue down until the angle between the upper leg and the calves becomes slightly less than 90-degrees. Inhale as you perform this portion of the movement. Tip: If you performed the exercise correctly, the front of the knees should make an imaginary straight line with the toes that is perpendicular to the front. If your knees are past that imaginary line (if they are past your toes) then you are placing undue stress on the knee and the exercise has been performed incorrectly.",
+      "Begin to raise the bar as you exhale by pushing the floor with the heel of your foot as you straighten the legs again and go back to the starting position.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Barbell_Hip_Thrust",
+    "name": "Hip Thrust",
+    "aliases": [
+      "hip thrust"
+    ],
+    "equipment": "barbell",
+    "primary_muscles": [
+      "glutes"
+    ],
+    "target_muscle": "glutes",
+    "movement_type": "compound",
+    "muscle_size": "big",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Begin seated on the ground with a bench directly behind you. Have a loaded barbell over your legs. Using a fat bar or having a pad on the bar can greatly reduce the discomfort caused by this exercise.",
+      "Roll the bar so that it is directly above your hips, and lean back against the bench so that your shoulder blades are near the top of it.",
+      "Begin the movement by driving through your feet, extending your hips vertically through the bar. Your weight should be supported by your shoulder blades and your feet. Extend as far as possible, then reverse the motion to return to the starting position."
+    ]
+  },
+  {
+    "id": "Seated_Leg_Curl",
+    "name": "Seated Hamstring Curl",
+    "aliases": [
+      "hamstring curls"
+    ],
+    "equipment": "machine",
+    "primary_muscles": [
+      "hamstrings"
+    ],
+    "target_muscle": "hamstrings",
+    "movement_type": "isolation",
+    "muscle_size": "big",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "Adjust the machine lever to fit your height and sit on the machine with your back against the back support pad.",
+      "Place the back of lower leg on top of padded lever (just a few inches under the calves) and secure the lap pad against your thighs, just above the knees. Then grasp the side handles on the machine as you point your toes straight (or you can also use any of the other two stances) and ensure that the legs are fully straight right in front of you. This will be your starting position.",
+      "As you exhale, pull the machine lever as far as possible to the back of your thighs by flexing at the knees. Keep your torso stationary at all times. Hold the contracted position for a second.",
+      "Slowly return to the starting position as you breathe in.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  },
+  {
+    "id": "Leg_Extensions",
+    "name": "Leg Extension",
+    "aliases": [
+      "leg extension"
+    ],
+    "equipment": "machine",
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "target_muscle": "quads",
+    "movement_type": "isolation",
+    "muscle_size": "big",
+    "rep_scheme": "standard",
+    "rep_step": 2,
+    "image_paths": [],
+    "instructions": [
+      "For this exercise you will need to use a leg extension machine. First choose your weight and sit on the machine with your legs under the pad (feet pointed forward) and the hands holding the side bars. This will be your starting position. Tip: You will need to adjust the pad so that it falls on top of your lower leg (just above your feet). Also, make sure that your legs form a 90-degree angle between the lower and upper leg. If the angle is less than 90-degrees then that means the knee is over the toes which in turn creates undue stress at the knee joint. If the machine is designed that way, either look for another machine or just make sure that when you start executing the exercise you stop going down once you hit the 90-degree angle.",
+      "Using your quadriceps, extend your legs to the maximum as you exhale. Ensure that the rest of the body remains stationary on the seat. Pause a second on the contracted position.",
+      "Slowly lower the weight back to the original position as you inhale, ensuring that you do not go past the 90-degree angle limit.",
+      "Repeat for the recommended amount of times."
+    ]
+  },
+  {
+    "id": "Seated_Calf_Raise",
+    "name": "Seated Calf Raise",
+    "aliases": [
+      "seated calve raise"
+    ],
+    "equipment": "machine",
+    "primary_muscles": [
+      "calves"
+    ],
+    "target_muscle": "calves",
+    "movement_type": "isolation",
+    "muscle_size": "big",
+    "rep_scheme": "high_rep",
+    "rep_step": 3,
+    "image_paths": [],
+    "instructions": [
+      "Sit on the machine and place your toes on the lower portion of the platform provided with the heels extending off. Choose the toe positioning of your choice (forward, in, or out) as per the beginning of this chapter.",
+      "Place your lower thighs under the lever pad, which will need to be adjusted according to the height of your thighs. Now place your hands on top of the lever pad in order to prevent it from slipping forward.",
+      "Lift the lever slightly by pushing your heels up and release the safety bar. This will be your starting position.",
+      "Slowly lower your heels by bending at the ankles until the calves are fully stretched. Inhale as you perform this movement.",
+      "Raise the heels by extending the ankles as high as possible as you contract the calves and breathe out. Hold the top contraction for a second.",
+      "Repeat for the recommended amount of repetitions."
+    ]
+  }
+]
