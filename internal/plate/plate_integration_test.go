@@ -132,6 +132,23 @@ func TestPlateUpsertScoreAndStreak(t *testing.T) {
 	}
 }
 
+// Days with no entries are neutral: they neither break nor extend the streak.
+func TestPlateEmptyDaysAreNeutral(t *testing.T) {
+	e := setup(t)
+	c := testutil.Login(t, e.url, e.fv, e.prefix+"neutral")
+	e.put(t, c, 6, "lunch", true, false) // logged, not good: the streak starts after this
+	e.goodDay(t, c, 5)
+	e.goodDay(t, c, 3) // day 4 empty
+	e.goodDay(t, c, 1) // day 2 empty, today empty
+	s := e.summary(t, c, "")
+	if s.Streak != 3 {
+		t.Fatalf("streak = %d, want 3", s.Streak)
+	}
+	if s.Days[2].Logged || !s.Days[1].Logged || s.Days[1].Points != 6 {
+		t.Fatalf("logged flags: %+v", s.Days)
+	}
+}
+
 func TestPlateIsUserScoped(t *testing.T) {
 	e := setup(t)
 	a := testutil.Login(t, e.url, e.fv, e.prefix+"a")

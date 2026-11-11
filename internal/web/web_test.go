@@ -41,7 +41,8 @@ func TestProteinGuideMarksEveryNumber(t *testing.T) {
 		t.Fatalf("status %d", rec.Code)
 	}
 	for _, topic := range []string{"Paneer", "Soya chunks, <strong>dry</strong>", "<strong>cooked</strong>", "Dal", "Curd", "Whey",
-		"Low", "Moderate", "Protein-rich", "Less gravy", "Fat is not the enemy", "isabgol"} {
+		"Low", "Moderate", "Protein-rich", "Less gravy", "most of the oil sits in the gravy", "Fat is not the enemy",
+		"fiber supplement for days without fruit or vegetables, not a replacement for them"} {
 		if !strings.Contains(body, topic) {
 			t.Errorf("guide is missing %q", topic)
 		}

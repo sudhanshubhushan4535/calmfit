@@ -29,7 +29,10 @@ type Check struct {
 
 // Day is one local date's plate check and score. A meal with no entry scores 0.
 type Day struct {
-	Date    string           `json:"date"` // YYYY-MM-DD, local
+	Date string `json:"date"` // YYYY-MM-DD, local
+	// Logged is true when at least one meal has an entry. A day with no entries is neutral for the
+	// streak: it neither breaks nor extends it.
+	Logged  bool             `json:"logged"`
 	Meals   map[string]Check `json:"meals"`
 	Points  int              `json:"points"`
 	Max     int              `json:"max"`
@@ -39,7 +42,7 @@ type Day struct {
 
 // Score scores one day's meals.
 func Score(date time.Time, meals map[string]Check, cfg config.Plate) Day {
-	d := Day{Date: date.Format(time.DateOnly), Meals: map[string]Check{}, Max: cfg.MaxPoints()}
+	d := Day{Date: date.Format(time.DateOnly), Logged: len(meals) > 0, Meals: map[string]Check{}, Max: cfg.MaxPoints()}
 	for _, m := range Meals {
 		c := meals[m]
 		d.Meals[m] = c
@@ -55,18 +58,46 @@ func Score(date time.Time, meals map[string]Check, cfg config.Plate) Day {
 	return d
 }
 
-// Streak counts consecutive good days ending at end (a config.Date). If endInProgress is true
-// (end is today) and end isn't good yet, the count ends at the day before instead: an unfinished
-// today doesn't break a streak.
-func Streak(good map[time.Time]bool, end time.Time, endInProgress bool) int {
-	d := end
-	if endInProgress && !good[d] {
-		d = d.AddDate(0, 0, -1)
-	}
+// Streak counts good days back from the last of days (oldest first, consecutive dates):
+//   - a good day extends the streak;
+//   - a day with no entries is neutral: it's skipped, neither breaking nor extending it;
+//   - a logged day under the threshold breaks it;
+//   - if lastInProgress (the last day is today), a today that isn't good yet is skipped, since the
+//     day isn't over.
+func Streak(days []Day, lastInProgress bool) int {
 	n := 0
-	for good[d] {
-		n++
-		d = d.AddDate(0, 0, -1)
+	for i := len(days) - 1; i >= 0; i-- {
+		d := days[i]
+		switch {
+		case d.Good:
+			n++
+		case !d.Logged, i == len(days)-1 && lastInProgress:
+			continue
+		default:
+			return n
+		}
+	}
+	return n
+}
+
+// GoodDays counts good days.
+func GoodDays(days []Day) int {
+	n := 0
+	for _, d := range days {
+		if d.Good {
+			n++
+		}
+	}
+	return n
+}
+
+// LoggedDays counts days with at least one entry.
+func LoggedDays(days []Day) int {
+	n := 0
+	for _, d := range days {
+		if d.Logged {
+			n++
+		}
 	}
 	return n
 }

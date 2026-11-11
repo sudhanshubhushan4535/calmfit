@@ -70,26 +70,51 @@ func TestScoreUsesConfigWeights(t *testing.T) {
 	}
 }
 
-func TestStreak(t *testing.T) {
-	good := map[time.Time]bool{
-		day("2026-11-06"): true,
-		day("2026-11-08"): true, day("2026-11-09"): true, day("2026-11-10"): true,
+// week builds consecutive days from a pattern: G good (6 pts), B logged but not good (2 pts),
+// . no entries.
+func week(pattern string) []Day {
+	var days []Day
+	start := day("2026-11-01")
+	for i, c := range pattern {
+		var meals map[string]Check
+		switch c {
+		case 'G':
+			meals = map[string]Check{"breakfast": both, "lunch": both}
+		case 'B':
+			meals = map[string]Check{"dinner": protein}
+		}
+		days = append(days, Score(start.AddDate(0, 0, i), meals, cfg))
 	}
+	return days
+}
+
+func TestStreak(t *testing.T) {
 	cases := []struct {
-		name       string
-		end        string
+		pattern    string
 		inProgress bool
 		want       int
 	}{
-		{"today good", "2026-11-10", true, 3},
-		{"today not logged yet", "2026-11-11", true, 3},
-		{"past day not good breaks", "2026-11-11", false, 0},
-		{"gap stops count", "2026-11-08", false, 1},
-		{"two missed days", "2026-11-12", true, 0},
+		{"BGGG", false, 3},     // logged bad day ends the count
+		{"BGGG", true, 3},      // good today counts
+		{"BGG.", true, 2},      // nothing logged today yet
+		{"BGGB", true, 2},      // today logged but not good yet: the day isn't over
+		{"BGGB", false, 0},     // a finished logged bad day breaks it
+		{"G.G..G", false, 3},   // empty days are neutral: they neither break nor extend
+		{"G.G..G...", true, 3}, // a run of empty days up to today keeps the streak
+		{"GBG.G", false, 2},    // the bad day still breaks it behind the empty day
+		{".....", true, 0},     // never logged
+		{"", true, 0},
 	}
 	for _, c := range cases {
-		if got := Streak(good, day(c.end), c.inProgress); got != c.want {
-			t.Errorf("%s: streak = %d, want %d", c.name, got, c.want)
+		days := week(c.pattern)
+		if got := Streak(days, c.inProgress); got != c.want {
+			t.Errorf("%q inProgress=%v: streak = %d, want %d", c.pattern, c.inProgress, got, c.want)
 		}
+	}
+	if d := week("."); d[0].Logged {
+		t.Errorf("empty day marked logged")
+	}
+	if d := Score(day("2026-11-10"), map[string]Check{"lunch": {}}, cfg); !d.Logged || d.Points != 0 {
+		t.Errorf("an all-unticked entry is logged with 0 points: %+v", d)
 	}
 }

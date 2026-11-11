@@ -76,10 +76,10 @@ func TestWeeklyReview(t *testing.T) {
 		t.Fatalf("tip/plate: %q %+v", r.Tip, r.Plate)
 	}
 
-	// Last week: 3 of 3, nothing to compare against yet, no stall; no good plate days → plate tip.
+	// Last week: 3 of 3, nothing to compare against yet, no stall; no plate entries are neutral, so no plate tip.
 	r = get("?date=" + lastMon.AddDate(0, 0, 6).Format(time.DateOnly))
 	if r.WeekStart != lastMon.Format(time.DateOnly) || r.Done != 3 || len(r.WentUp) != 0 || len(r.Stalled) != 0 ||
-		r.Plate.Days != 7 || !strings.HasPrefix(r.Tip, "Good plate days: 0 of 7") {
+		r.Plate.Days != 0 || !strings.HasPrefix(r.Tip, "Solid week") {
 		t.Fatalf("last week: %+v", r)
 	}
 

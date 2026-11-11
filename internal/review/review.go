@@ -28,7 +28,7 @@ type Input struct {
 	Done, Planned int
 	Lifts         []Lift
 	PlateGoodDays int
-	PlateDays     int // days of the week counted so far (7 for a past week)
+	PlateDays     int // days of the week with any plate entry (empty days are neutral)
 	PlateStreak   int
 }
 
@@ -49,7 +49,7 @@ type Stalled struct {
 // Plate is the week's plate-check summary.
 type Plate struct {
 	GoodDays int `json:"good_days"`
-	Days     int `json:"days"`
+	Days     int `json:"days"` // logged days; days with no entries are left out
 	Streak   int `json:"streak"`
 }
 
@@ -101,7 +101,7 @@ func Build(in Input) Review {
 //  1. no workouts done → start with one session
 //  2. fewer done than planned → consistency
 //  3. any stalled lift → the plan has adjusted it; clean reps, sleep, food
-//  4. good plate days on fewer than half the days counted → protein
+//  4. good plate days on fewer than half the logged days → protein (no logged days → no plate tip)
 //  5. otherwise → keep the same routine
 func Tip(r Review) string {
 	switch {
@@ -118,7 +118,7 @@ func Tip(r Review) string {
 		return fmt.Sprintf("%s stalled. The plan has already adjusted the targets: focus on clean reps, sleep and protein.",
 			strings.Join(names, ", "))
 	case r.Plate.Days > 0 && r.Plate.GoodDays*2 < r.Plate.Days:
-		return fmt.Sprintf("Good plate days: %d of %d. Add a protein-rich serving to one more meal each day.",
+		return fmt.Sprintf("Good plate days: %d of %d logged. One easy win: add a protein-rich serving to one more meal a day.",
 			r.Plate.GoodDays, r.Plate.Days)
 	default:
 		return "Solid week. Keep the same routine next week."

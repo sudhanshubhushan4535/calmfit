@@ -53,7 +53,7 @@ func (h *Handler) today() time.Time {
 // Summary is the response of GET /plate.
 type Summary struct {
 	Today      Day   `json:"today"`
-	Streak     int   `json:"streak"` // consecutive good days; an unfinished today doesn't break it
+	Streak     int   `json:"streak"` // good days; empty days and an unfinished today don't break it
 	GoodDayMin int   `json:"good_day_min"`
 	Days       []Day `json:"days"` // from..to, oldest first, every date present
 }
@@ -194,29 +194,11 @@ func Days(ctx context.Context, q Querier, uid string, from, to time.Time, cfg co
 	return out, nil
 }
 
-// StreakAt returns the good-day streak ending at end (see Streak), looking back at most StreakLookbackDays.
+// StreakAt returns the streak (see Streak) over the StreakLookbackDays days ending at end.
 func StreakAt(ctx context.Context, q Querier, uid string, end time.Time, endInProgress bool, cfg config.Plate) (int, error) {
 	days, err := Days(ctx, q, uid, end.AddDate(0, 0, -(StreakLookbackDays-1)), end, cfg)
 	if err != nil {
 		return 0, err
 	}
-	good := map[time.Time]bool{}
-	for _, d := range days {
-		if d.Good {
-			t, _ := parseDate(d.Date)
-			good[t] = true
-		}
-	}
-	return Streak(good, end, endInProgress), nil
-}
-
-// GoodDays counts good days in [from, to].
-func GoodDays(days []Day) int {
-	n := 0
-	for _, d := range days {
-		if d.Good {
-			n++
-		}
-	}
-	return n
+	return Streak(days, endInProgress), nil
 }

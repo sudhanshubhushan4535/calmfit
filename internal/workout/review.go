@@ -74,7 +74,7 @@ func (h *Handler) weeklyReview(w http.ResponseWriter, r *http.Request) {
 
 	rv := review.Build(review.Input{
 		Done: counts[0].Done, Planned: counts[0].Planned, Lifts: lifts,
-		PlateGoodDays: plate.GoodDays(days), PlateDays: len(days), PlateStreak: streak,
+		PlateGoodDays: plate.GoodDays(days), PlateDays: plate.LoggedDays(days), PlateStreak: streak,
 	})
 	httpx.WriteJSON(w, http.StatusOK, WeeklyReview{WeekStart: mon.Format(time.DateOnly), WeekEnd: sun.Format(time.DateOnly), Review: rv})
 }

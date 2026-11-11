@@ -40,9 +40,13 @@ revisit any of them by changing the code, tests and this file together.
 
 ### D7. How do missing meals, percent and the streak work?
 - **Choice:** A meal with no entry scores 0. Percent = points / max, rounded down (6/9 → 66%).
-  The streak counts consecutive good days ending today; if today isn't good *yet*, it ends at
-  yesterday (an unfinished day doesn't break it). Lookback is capped at 366 days.
-- **Why:** Rounding down never overstates. Breaking the streak at breakfast would be wrong and demotivating.
+  The streak counts good days back from today. A day with **no plate entries at all is neutral**:
+  it neither breaks nor extends the streak. Only a *logged* day under the good-day threshold
+  breaks it, and today never breaks it while it's still in progress. Lookback is capped at 366 days.
+  The weekly review's plate tip compares good days with *logged* days only, so a week with no
+  entries gets no plate tip.
+- **Why:** The spec says "Skipping a meal never resets the streak harshly; no guilt messaging" (user
+  decision, Day 3). Rounding down never overstates.
 
 ### D8. What does "Protein ✓" mean on the plate check?
 - **Choice:** The guide says to tick it for one protein-rich serving, or two moderate ones.
@@ -50,8 +54,10 @@ revisit any of them by changing the code, tests and this file together.
 - **Why:** The spec names the tiers but not the rule. This is the simplest rule a gym member can apply at the table.
 
 ### D9. Is the protein guide public, and what else is on it?
-- **Choice:** `GET /guide/protein` needs no sign-in. The isabgol note includes "check with a doctor
-  if you take regular medication".
+- **Choice:** `GET /guide/protein` needs no sign-in. The wording follows the spec: isabgol is "a
+  fiber supplement for days without fruit or vegetables, not a replacement for them", and "less
+  gravy" gives the reason "most of the oil sits in the gravy". I added one line: "check with a
+  doctor if you take regular medication".
 - **Why:** It's static education with no user data. Psyllium can affect how medicines are absorbed,
   so the cautious wording is the safer default.
 
@@ -95,8 +101,8 @@ revisit any of them by changing the code, tests and this file together.
 ### D16. Which tip is shown, and how is the plate scored for the week?
 - **Choice:** One tip, the first rule that matches: no workouts → start with one; fewer than
   planned → consistency; any stall → "the plan has adjusted, focus on clean reps, sleep, protein";
-  good plate days on fewer than half of the days so far → protein; otherwise "keep the same routine".
-  The plate counts only the days that have happened (all 7 for a past week). The streak is as of
+  good plate days on fewer than half of the *logged* days → protein; otherwise "keep the same
+  routine". Days with no plate entries are neutral (D7). The streak is as of
   Sunday for a past week, or today (unfinished) for the current one. Future dates → 400.
 - **Why:** Showing up comes first. A stall tip never contradicts the engine's own fix. Counting
   days that haven't happened yet would punish a Tuesday review.
