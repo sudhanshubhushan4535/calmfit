@@ -55,3 +55,18 @@ revisit any of them by changing the code, tests and this file together.
   if you take regular medication".
 - **Why:** It's static education with no user data. Psyllium can affect how medicines are absorbed,
   so the cautious wording is the safer default.
+
+### D10. Where do exercise images and cues live, and who can see them?
+- **Choice:** 2 JPEGs per exercise were downloaded once from free-exercise-db
+  (github.com/yuhonas/free-exercise-db, Unlicense/public domain) into
+  `internal/web/static/exercises/<id>/{0,1}.jpg`. They are embedded in the binary and served
+  publicly at `/static/` with a 1-day cache. Seed validation rejects any other path, so nothing is
+  hot-linked. `GET /exercises/{id}` needs sign-in.
+- **Why:** Embedding means the server can't run with missing images. Images are public-domain demo
+  pictures; the how-to endpoint sits behind auth like the rest of the API.
+
+### D11. How are the cues marked as unreviewed?
+- **Choice:** Exactly 2 cues per exercise (each at most 80 characters) in `seed/exercises.json`.
+  The API returns `cues_status: "review"` for every exercise until a coach signs them off.
+- **Why:** The spec says to mark cues "review". A per-exercise review flag would be a new
+  workflow; one constant is the smallest honest marker.

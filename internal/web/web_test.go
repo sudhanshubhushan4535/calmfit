@@ -1,10 +1,15 @@
 package web
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/sudhanshubhushan4535/calmfit/internal/seed"
 )
 
 // html/template escapes contextually at execution time, so a script it can't parse only fails when served.
@@ -47,5 +52,30 @@ func TestProteinGuideMarksEveryNumber(t *testing.T) {
 	text := tagRe.ReplaceAllString(verifyRe.ReplaceAllString(headRe.ReplaceAllString(body, ""), ""), "")
 	if m := digitRe.FindAllStringIndex(text, -1); len(m) > 0 {
 		t.Fatalf("unmarked number near %q", text[max(0, m[0][0]-30):min(len(text), m[0][1]+30)])
+	}
+}
+
+// Every image path in the seed must be served from our own embedded static folder as a JPEG.
+func TestSeedImagesAreEmbedded(t *testing.T) {
+	b, err := os.ReadFile("../../seed/exercises.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exercises []seed.Exercise
+	if err := json.Unmarshal(b, &exercises); err != nil {
+		t.Fatal(err)
+	}
+	h := Static()
+	for _, e := range exercises {
+		if len(e.ImagePaths) != seed.ImagesPerExercise {
+			t.Errorf("%s: %d images", e.ID, len(e.ImagePaths))
+		}
+		for _, p := range e.ImagePaths {
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
+			if rec.Code != 200 || rec.Header().Get("Content-Type") != "image/jpeg" || !bytes.HasPrefix(rec.Body.Bytes(), []byte{0xFF, 0xD8, 0xFF}) {
+				t.Errorf("%s: status %d, type %q", p, rec.Code, rec.Header().Get("Content-Type"))
+			}
+		}
 	}
 }

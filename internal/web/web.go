@@ -3,8 +3,9 @@ package web
 
 import (
 	"bytes"
-	_ "embed"
+	"embed"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 )
@@ -22,6 +23,29 @@ func Index(clientID string) http.HandlerFunc {
 			log.Printf("web: render index: %v", err)
 		}
 	}
+}
+
+//go:embed static
+var staticFS embed.FS
+
+// Static serves the embedded static/ folder (exercise images) under /static/. Files are our own
+// copies, never hot-linked, and are cached for a day.
+func Static() http.Handler {
+	sub, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		panic("web: static fs: " + err.Error())
+	}
+	files := http.StripPrefix("/static/", http.FileServerFS(sub))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		files.ServeHTTP(w, r)
+	})
+}
+
+// StaticFS exposes the embedded static/ folder for tests.
+func StaticFS() fs.FS {
+	sub, _ := fs.Sub(staticFS, "static")
+	return sub
 }
 
 //go:embed protein.html

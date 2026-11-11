@@ -16,6 +16,7 @@ type Exercise struct {
 	WeightStepG    int      `json:"weight_step_g"` // grams per weight change (R2)
 	ImagePaths     []string `json:"image_paths"`
 	Instructions   []string `json:"instructions"`
+	Cues           []string `json:"cues"` // short coaching cues, pending coach review
 }
 
 // TemplateExercise is one slot; its position is its index among same-day slots.

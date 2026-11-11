@@ -117,14 +117,34 @@ func TestCoverage(t *testing.T) {
 	}
 }
 
+func validExercise() Exercise {
+	return Exercise{ID: "bench", WeightStepG: 2500, Instructions: []string{"Press."},
+		Cues:       []string{"Feet flat", "Bar to mid-chest"},
+		ImagePaths: []string{"/static/exercises/bench/0.jpg", "/static/exercises/bench/1.jpg"}}
+}
+
 func TestValidateExercise(t *testing.T) {
-	for _, step := range []int{0, -2500} {
-		err := ValidateExercise(Exercise{ID: "bench", WeightStepG: step})
-		if err == nil || !strings.Contains(err.Error(), "weight_step_g must be > 0") {
-			t.Fatalf("step %d: err = %v, want weight_step_g error", step, err)
-		}
+	if err := ValidateExercise(validExercise()); err != nil {
+		t.Fatalf("valid exercise: %v", err)
 	}
-	if err := ValidateExercise(Exercise{ID: "bench", WeightStepG: 2500}); err != nil {
-		t.Fatalf("valid step: %v", err)
+	cases := map[string]struct {
+		edit    func(*Exercise)
+		wantErr string
+	}{
+		"zero step":       {func(e *Exercise) { e.WeightStepG = 0 }, "weight_step_g must be > 0"},
+		"negative step":   {func(e *Exercise) { e.WeightStepG = -2500 }, "weight_step_g must be > 0"},
+		"no instructions": {func(e *Exercise) { e.Instructions = nil }, "instructions are required"},
+		"one cue":         {func(e *Exercise) { e.Cues = e.Cues[:1] }, "exactly 2 cues"},
+		"empty cue":       {func(e *Exercise) { e.Cues[1] = "" }, "must be 1–80"},
+		"long cue":        {func(e *Exercise) { e.Cues[0] = strings.Repeat("x", 81) }, "must be 1–80"},
+		"remote image":    {func(e *Exercise) { e.ImagePaths[0] = "https://example.com/0.jpg" }, "image_paths must be"},
+		"one image":       {func(e *Exercise) { e.ImagePaths = e.ImagePaths[:1] }, "image_paths must be"},
+	}
+	for name, c := range cases {
+		e := validExercise()
+		c.edit(&e)
+		if err := ValidateExercise(e); err == nil || !strings.Contains(err.Error(), c.wantErr) {
+			t.Errorf("%s: err = %v, want %q", name, err, c.wantErr)
+		}
 	}
 }

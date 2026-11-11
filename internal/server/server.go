@@ -8,6 +8,7 @@ import (
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
+	"github.com/sudhanshubhushan4535/calmfit/internal/exercise"
 	"github.com/sudhanshubhushan4535/calmfit/internal/plate"
 	"github.com/sudhanshubhushan4535/calmfit/internal/program"
 	"github.com/sudhanshubhushan4535/calmfit/internal/web"
@@ -22,7 +23,9 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string, cfg config.Config) 
 	(&program.Handler{DB: db}).Register(mux, a.RequireUser)
 	(&workout.Handler{DB: db}).Register(mux, a.RequireUser)
 	(&plate.Handler{DB: db, Cfg: cfg}).Register(mux, a.RequireUser)
+	(&exercise.Handler{DB: db}).Register(mux, a.RequireUser)
 	mux.HandleFunc("GET /{$}", web.Index(clientID))
 	mux.HandleFunc("GET /guide/protein", web.ProteinGuide)
+	mux.Handle("GET /static/", web.Static())
 	return mux
 }

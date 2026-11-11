@@ -104,16 +104,16 @@ func mustLoad(path string, v any) {
 func upsertExercise(ctx context.Context, tx pgx.Tx, e seed.Exercise) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO exercises (id, name, aliases, equipment, primary_muscles, target_muscle, movement_type,
-		                       muscle_size, rep_scheme, rep_step, weight_step_g, image_paths, instructions)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		                       muscle_size, rep_scheme, rep_step, weight_step_g, image_paths, instructions, cues)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name, aliases = EXCLUDED.aliases, equipment = EXCLUDED.equipment,
 			primary_muscles = EXCLUDED.primary_muscles, target_muscle = EXCLUDED.target_muscle,
 			movement_type = EXCLUDED.movement_type, muscle_size = EXCLUDED.muscle_size,
 			rep_scheme = EXCLUDED.rep_scheme, rep_step = EXCLUDED.rep_step, weight_step_g = EXCLUDED.weight_step_g,
-			image_paths = EXCLUDED.image_paths, instructions = EXCLUDED.instructions`,
+			image_paths = EXCLUDED.image_paths, instructions = EXCLUDED.instructions, cues = EXCLUDED.cues`,
 		e.ID, e.Name, nonNil(e.Aliases), e.Equipment, nonNil(e.PrimaryMuscles), e.TargetMuscle, e.MovementType,
-		e.MuscleSize, e.RepScheme, e.RepStep, e.WeightStepG, nonNil(e.ImagePaths), nonNil(e.Instructions))
+		e.MuscleSize, e.RepScheme, e.RepStep, e.WeightStepG, nonNil(e.ImagePaths), nonNil(e.Instructions), nonNil(e.Cues))
 	return err
 }
 

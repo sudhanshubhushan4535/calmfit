@@ -6,12 +6,41 @@ import (
 	"slices"
 )
 
+// Content limits for an exercise's how-to.
+const (
+	CuesPerExercise   = 2
+	MaxCueLen         = 80 // cues are short, glanceable lines
+	ImagesPerExercise = 2
+)
+
+// ImagePath is where an exercise's nth image is served from our own static folder (never hot-linked).
+func ImagePath(id string, n int) string { return fmt.Sprintf("/static/exercises/%s/%d.jpg", id, n) }
+
 // ValidateExercise checks one catalog entry's own fields.
 func ValidateExercise(e Exercise) error {
+	var errs []error
 	if e.WeightStepG <= 0 {
-		return fmt.Errorf("exercise %s: weight_step_g must be > 0, got %d", e.ID, e.WeightStepG)
+		errs = append(errs, fmt.Errorf("exercise %s: weight_step_g must be > 0, got %d", e.ID, e.WeightStepG))
 	}
-	return nil
+	if len(e.Instructions) == 0 {
+		errs = append(errs, fmt.Errorf("exercise %s: instructions are required", e.ID))
+	}
+	if len(e.Cues) != CuesPerExercise {
+		errs = append(errs, fmt.Errorf("exercise %s: needs exactly %d cues, got %d", e.ID, CuesPerExercise, len(e.Cues)))
+	}
+	for _, c := range e.Cues {
+		if c == "" || len(c) > MaxCueLen {
+			errs = append(errs, fmt.Errorf("exercise %s: cue %q must be 1–%d characters", e.ID, c, MaxCueLen))
+		}
+	}
+	want := []string{}
+	for n := range ImagesPerExercise {
+		want = append(want, ImagePath(e.ID, n))
+	}
+	if !slices.Equal(e.ImagePaths, want) {
+		errs = append(errs, fmt.Errorf("exercise %s: image_paths must be %v, got %v", e.ID, want, e.ImagePaths))
+	}
+	return errors.Join(errs...)
 }
 
 // Validate checks a template against the catalog and returns every violation joined.
