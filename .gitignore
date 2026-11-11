@@ -1,0 +1,5 @@
+# Local secrets/config; .env.example is the committed template
+.env
+/bin
+*.test
+/migrate
