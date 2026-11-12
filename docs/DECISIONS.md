@@ -502,3 +502,46 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
   person's account. Reusing the login route adds no new endpoint to secure.
 - **Day 7 note:** a benchmark against the VM needs a temporary `APP_ENV=dev TEST_AUTH=1` run
   before any pilot user signs up. After that, the VM runs `APP_ENV=production`.
+
+### D40. How is synthetic data written, and what does it skip?
+- **Choice:** `make seed-synthetic` (`cmd/seed-synthetic`, `internal/synthetic`) generates users
+  `synthetic-00000…` and COPYs them in **one transaction** (all or nothing), 250 users per batch,
+  then runs ANALYZE. It writes users, user_programs, workouts, workout_exercises (with the plan
+  snapshot), workout_sets and plate_checks.
+  - **What it skips:** no outbox rows, so no Kafka events and no `weekly_stats` for synthetic users.
+  - **How plans are made:** every plan comes from the real engine (`progression.Next` on the last
+    two sessions, `AdjustInSession` for each set's target). Reps come from a simple strength model:
+    an Epley 1RM per exercise that grows quickly and then tapers, with set fatigue and ±1 rep of
+    noise. About 3% of exercises are skipped and 3% are cut short. Tests check that the engine
+    accepts every generated history and that the real router serves next workout and the weekly
+    review for a heavy synthetic user.
+  - **Determinism:** user i comes from its own PCG stream seeded by `(seed, i)`, including its
+    UUIDs. The same `-seed`, `-anchor` and `-users` give identical rows (tested).
+  - **Re-running:** it refuses while synthetic users exist. `ARGS=-reset` deletes only subs
+    matching `^synthetic-[0-9]{5}$`, plus their outbox rows.
+- **Why:** The brief says to bypass the outbox. Since `weekly_stats` is defined as derived from
+  events (D23), synthetic users correctly have none, and a replay can't disagree with them.
+  Generating with the engine keeps the plan snapshots and the `history()` input realistic, which is
+  what the benchmarked queries read.
+
+### D41. How big is the synthetic data set, and why?
+- **Choice:** 4,000 users (seed 42). History length: 40% 1–3 months, 40% 3–9 months, 20% 1–2
+  years. Users train 3–5 days a week at 75–95% attendance.
+- **Measured** (local Mac, anchor 2026-11-12):
+
+  | Table | Rows | Size |
+  | --- | --- | --- |
+  | workouts | 394,743 | 81 MB |
+  | workout_exercises | 2,105,287 | 1,536 MB |
+  | workout_sets | 6,034,122 | 980 MB |
+  | plate_checks | 1,352,819 | 197 MB |
+
+  The database is **2,803 MB** (budget ~3 GB). Generation took 4 s; the COPY and ANALYZE took 3 min 12 s.
+- **Workouts per user:** the heaviest synthetic user has 483 workouts, and 616 users have more than 250.
+- **Why:** Every benchmarked query is per user, so the per-user row counts decide the plan shapes,
+  not a headline total. The total (2.8 GB) is about 20× `shared_buffers` (128 MB), so a random user's
+  rows aren't all cached and the latency includes real reads. The plan jsonb (~765 bytes per
+  row with indexes) dominates the size, so more users would hit the 3 GB budget before adding any
+  new query shape.
+- **Size guard:** an estimate from the measured per-row sizes. It refuses if the current size
+  plus the estimate exceeds 3 GB.

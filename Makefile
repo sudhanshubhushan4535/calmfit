@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed run relay worker dlq-replay voice-eval test-db test
+.PHONY: db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -41,6 +41,11 @@ migrate-status:
 # Validates seed/*.json, then upserts in one transaction; safe to re-run
 seed:
 	go run ./cmd/seed
+
+# Deterministic synthetic history for load tests (D40, D41): COPY, no outbox, refuses over ~3 GB.
+# ARGS=-reset replaces existing synthetic users; also -users N, -seed S, -anchor YYYY-MM-DD.
+seed-synthetic:
+	go run ./cmd/seed-synthetic $(ARGS)
 
 run:
 	go run ./cmd/api

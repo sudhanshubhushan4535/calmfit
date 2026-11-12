@@ -54,7 +54,6 @@ func run() error {
 		log.Printf("WARNING: TEST AUTH ENABLED (APP_ENV=dev): \"test:synthetic-N\" credentials sign in without Google")
 	}
 
-
 	cfgPath := os.Getenv("APP_CONFIG")
 	if cfgPath == "" {
 		cfgPath = "config/app.json"

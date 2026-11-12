@@ -120,6 +120,27 @@ func Login(t *testing.T, baseURL string, fv *FakeVerifier, sub string) *http.Cli
 	return c
 }
 
+// LoginCredential posts cred to /auth/google (for verifiers that accept it as is, like
+// auth.TestVerifier) and returns a client holding the session cookie.
+func LoginCredential(t *testing.T, baseURL, cred string) *http.Client {
+	t.Helper()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &http.Client{Jar: jar}
+	body, _ := json.Marshal(map[string]string{"credential": cred})
+	resp, err := c.Post(baseURL+"/auth/google", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("login %s: status %d", cred, resp.StatusCode)
+	}
+	return c
+}
+
 // Config loads the repo's config/app.json (found by walking up to go.mod), so tests use the same
 // weights and timezone as the app.
 func Config(t *testing.T) config.Config {
