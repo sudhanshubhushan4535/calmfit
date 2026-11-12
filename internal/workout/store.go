@@ -53,18 +53,27 @@ func scanExercise(row pgx.Row, extra ...any) (exerciseInfo, error) {
 // A session is a completed workout with at least one logged set on the exercise. If upTo is set,
 // only workouts completed at or before it count, so a workout's summary never changes later.
 func history(ctx context.Context, q querier, uid, exerciseID string, upTo *time.Time) ([]progression.Session, error) {
+	// The inner query picks the two sessions first, walking the user's workouts newest first
+	// (workouts_user_completed_idx backwards) and stopping after two matches; only those two are
+	// aggregated. Grouping before the LIMIT read every workout the user ever did (docs/BENCHMARKS.md).
 	rows, err := q.Query(ctx, `
 		SELECT w.completed_at, we.plan,
 		       array_agg(s.weight_g ORDER BY s.set_number), array_agg(s.reps ORDER BY s.set_number)
-		FROM workouts w
-		JOIN workout_exercises we ON we.workout_id = w.id
-		JOIN workout_sets s ON s.workout_id = we.workout_id AND s.exercise_id = we.exercise_id
-		WHERE w.user_id = $1::uuid AND w.status = 'completed' AND we.exercise_id = $2
-		  AND we.plan IS NOT NULL
-		  AND ($3::timestamptz IS NULL OR w.completed_at <= $3)
+		FROM (
+			SELECT w.id, w.completed_at, w.started_at
+			FROM workouts w
+			WHERE w.user_id = $1::uuid AND w.status = 'completed'
+			  AND ($3::timestamptz IS NULL OR w.completed_at <= $3)
+			  AND EXISTS (SELECT 1 FROM workout_exercises we
+			              WHERE we.workout_id = w.id AND we.exercise_id = $2 AND we.plan IS NOT NULL)
+			  AND EXISTS (SELECT 1 FROM workout_sets s WHERE s.workout_id = w.id AND s.exercise_id = $2)
+			ORDER BY w.completed_at DESC, w.started_at DESC
+			LIMIT 2
+		) w
+		JOIN workout_exercises we ON we.workout_id = w.id AND we.exercise_id = $2
+		JOIN workout_sets s ON s.workout_id = w.id AND s.exercise_id = $2
 		GROUP BY w.id, w.completed_at, w.started_at, we.plan
-		ORDER BY w.completed_at DESC, w.started_at DESC
-		LIMIT 2`, uid, exerciseID, upTo)
+		ORDER BY w.completed_at DESC, w.started_at DESC`, uid, exerciseID, upTo)
 	if err != nil {
 		return nil, fmt.Errorf("query history: %w", err)
 	}

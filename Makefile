@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
+.PHONY: bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -77,3 +77,26 @@ test-db:
 # .env is exported above, so DB-backed tests see TEST_DATABASE_URL
 test:
 	go test ./...
+
+# k6 benchmarks (docs/BENCHMARKS.md). The API must run with APP_ENV=dev TEST_AUTH=1 on BASE_URL.
+# Summaries go to bench-results/ (gitignored). A missed target makes k6 exit non-zero.
+K6 = mkdir -p bench-results && k6 run --quiet
+bench-log-set:
+	$(K6) --summary-export bench-results/log_set.json k6/log_set.js
+bench-next-workout:
+	$(K6) --summary-export bench-results/next_workout.json k6/next_workout.js
+bench-weekly-review:
+	$(K6) --summary-export bench-results/weekly_review.json k6/weekly_review.js
+bench-history:
+	$(K6) --summary-export bench-results/history.json k6/history.js
+# Runs all four even if one misses its target
+bench:
+	-$(MAKE) bench-log-set
+	-$(MAKE) bench-next-workout
+	-$(MAKE) bench-weekly-review
+	-$(MAKE) bench-history
+
+# EXPLAIN (ANALYZE, BUFFERS) of the benchmarked queries for one user (default: the synthetic user
+# with the most workouts). Uses psql against DATABASE_URL.
+explain:
+	scripts/explain.sh $(SUB)
