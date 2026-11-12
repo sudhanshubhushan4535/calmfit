@@ -28,6 +28,8 @@ func fakeParser() *voice.FakeParser {
 		"12 10 8":      {Sets: []voice.ParsedSet{{Reps: 12}, {Reps: 10}, {Reps: 8}}},
 		"squat 60, 5":  {ExerciseID: squat, Unit: voice.KG, Sets: []voice.ParsedSet{{Weight: kgp(60), Reps: 5}}},
 		"lateral 8, 9": {ExerciseID: lateral, Unit: voice.KG, Sets: []voice.ParsedSet{{Weight: kgp(8), Reps: 9}}},
+		// What the API parser returns for an exercise outside today's list (its enum can't name it).
+		"leg press 100, 10": {OtherExercise: true, Unit: voice.KG, Sets: []voice.ParsedSet{{Weight: kgp(100), Reps: 10}}},
 	}}
 }
 
@@ -199,6 +201,7 @@ func TestVoiceParseResults(t *testing.T) {
 		{"squat 60, 5", "", voice.CodeNotInWorkout}, // legs exercise on push day
 		{"lateral 8, 9", "", voice.CodeNeedsUsualWeight},
 		{"12 10 8", "", voice.CodeNoExercise},
+		{"leg press 100, 10", inclinePress, voice.CodeNotInWorkout}, // the open exercise must not stand in
 	} {
 		status, b := e.voiceParse(t, c, w.ID, tc.transcript, tc.hint)
 		if status != http.StatusUnprocessableEntity || errCode(t, b) != tc.code {

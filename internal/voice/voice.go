@@ -32,8 +32,11 @@ const (
 
 // Parsed is what a Parser extracted, before any business validation.
 type Parsed struct {
-	// ExerciseID is "" when no exercise was named.
+	// ExerciseID is "" when no exercise was named, or the one named isn't in the list.
 	ExerciseID string `json:"exercise_id"`
+	// OtherExercise is true when an exercise was named that isn't in today's workout. The open
+	// exercise must then not stand in for it.
+	OtherExercise bool `json:"other_exercise"`
 	// Unit is "" when no weight was said; it then defaults to kg.
 	Unit Unit        `json:"unit"`
 	Sets []ParsedSet `json:"sets"`
@@ -116,7 +119,7 @@ type Result struct {
 }
 
 // Resolve validates a parse against today's workout. hint is the exercise the user has open
-// ("" for none); it is used only when no exercise was said.
+// ("" for none); it is used only when no exercise was named at all.
 //
 // Sets are numbered from the first unlogged set. Weights follow D31: a set with no weight said
 // takes the last weight said before it in the same phrase ("bench 60, 8 8 7" logs all three at
@@ -125,6 +128,9 @@ func Resolve(p Parsed, workout []Exercise, hint string) (Result, error) {
 	var res Result
 	res.Warnings = []string{}
 
+	if p.OtherExercise {
+		return Result{}, &Error{CodeNotInWorkout, "that exercise isn't in today's workout"}
+	}
 	id := p.ExerciseID
 	if id == "" {
 		if hint == "" {

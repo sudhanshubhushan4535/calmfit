@@ -62,6 +62,21 @@
   <div id="vconfirm"></div>
   <p id="verr" class="err"></p>
 
+  <h2>Voice eval: speech-to-text capture</h2>
+  <p class="muted">For measuring the browser's speech-to-text (D36). Paste lines of
+    <code>eval/voice/phrases.jsonl</code> (or plain phrases, one per line), read each phrase aloud on the
+    phone under test, then download <code>stt.jsonl</code> for <code>make voice-eval ARGS="-stt …"</code>.
+    Transcripts stay in this page; nothing is sent to the server.</p>
+  <textarea id="cphrases" rows="4" style="width:100%" aria-label="phrases to read"></textarea>
+  <div class="row">
+    <button id="cload" type="button">Load phrases</button>
+    <button id="crec" type="button" disabled>🎤 Record</button>
+    <button id="cskip" type="button" disabled>Skip</button>
+    <button id="cdl" type="button" disabled>Download stt.jsonl (0)</button>
+  </div>
+  <p id="cnow" style="font-size:1.3rem"></p>
+  <p id="cerr" class="err"></p>
+
   <h2>Progress</h2>
   <div class="row">
     <input id="pex" value="Incline_Dumbbell_Press" style="width:16rem" aria-label="exercise id">
@@ -322,6 +337,52 @@
         rec.start();
       });
     }
+
+    // ---- Voice eval capture: read each phrase, keep the browser's transcript, download JSONL ----
+    const cap = { phrases: [], i: 0, recs: [] };
+    const cNow = document.getElementById('cnow'), cErr = document.getElementById('cerr');
+    const cRec = document.getElementById('crec'), cSkip = document.getElementById('cskip'), cDl = document.getElementById('cdl');
+    function capShow() {
+      const done = cap.i >= cap.phrases.length;
+      cNow.textContent = done ? `Done: ${cap.recs.length} recorded.` : `${cap.i + 1}/${cap.phrases.length}: “${cap.phrases[cap.i].text}”`;
+      cRec.disabled = done || !SR;
+      cSkip.disabled = done;
+      cDl.disabled = cap.recs.length === 0;
+      cDl.textContent = `Download stt.jsonl (${cap.recs.length})`;
+    }
+    document.getElementById('cload').addEventListener('click', () => {
+      cErr.textContent = '';
+      cap.phrases = document.getElementById('cphrases').value.split('\n').map(l => l.trim()).filter(Boolean).map((l, n) => {
+        try { const c = JSON.parse(l); return { id: c.id, text: c.transcript }; } catch (_) { return { id: 'line-' + (n + 1), text: l }; }
+      });
+      cap.i = 0;
+      cap.recs = [];
+      if (!SR) cErr.textContent = 'This browser has no Web Speech API.';
+      capShow();
+    });
+    cSkip.addEventListener('click', () => { cap.i++; capShow(); });
+    cRec.addEventListener('click', () => {
+      const p = cap.phrases[cap.i];
+      const rec = new SR();
+      rec.lang = 'en-IN';
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      cRec.disabled = true;
+      cRec.textContent = '🎤 Listening…';
+      rec.onresult = e => {
+        cap.recs.push({ id: p.id, spoken_text: p.text, transcript: e.results[0][0].transcript, device: navigator.userAgent });
+        cap.i++;
+      };
+      rec.onerror = e => { cErr.textContent = 'speech: ' + e.error; };
+      rec.onend = () => { cRec.textContent = '🎤 Record'; capShow(); };
+      rec.start();
+    });
+    cDl.addEventListener('click', () => {
+      const blob = new Blob([cap.recs.map(r => JSON.stringify(r)).join('\n') + '\n'], { type: 'application/x-ndjson' });
+      const a = el('a', { href: URL.createObjectURL(blob), download: 'stt.jsonl' });
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
 
     // ---- Progress charts: inline SVG, no libraries ----
     const NS = 'http://www.w3.org/2000/svg';

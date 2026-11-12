@@ -296,6 +296,10 @@ Day 6's failure drills.
      with a warning.
   5. **Ranges.** The same as tap logging: reps 1–50, weight > 0 and at most 1000 kg
      (`progression.MaxWeightG`, which now holds the cap `workout` used before).
+  6. **Another day's exercise** (added in C5). If an exercise was named but isn't in today's
+     workout ("squat 60, 5" on push day), the parser sets `other_exercise` and Resolve rejects
+     the parse with `exercise_not_in_workout`. The open exercise never stands in for it.
+     Otherwise squat's numbers could be offered as incline-press sets.
 - **Why (user decision, Day 5):** The program uses ascending weights per set, so the spec's single
   `weight` can't describe most sessions. Carrying a spoken weight forward matches how people talk.
   Falling back to the plan means "12 10 8" alone logs the prescribed session. The confirm screen
@@ -390,3 +394,43 @@ Day 6's failure drills.
   retried, and nothing is lost.
 - **API startup:** with the flag on, `ANTHROPIC_API_KEY` and `REDIS_URL` are required. Redis isn't
   pinged at startup, because the API runs without it and only voice fails closed.
+
+### D36. How is voice logging evaluated, and when does the flag go on?
+- **Choice:**
+  - **Extraction.** `make voice-eval` runs `eval/voice/phrases.jsonl` through the real
+    `APIParser` and `Resolve`, one case at a time. Without `-yes` it only prints the case count and
+    an estimated cost, and calls nothing. Each case names a PPL day (whose exercises are the
+    candidates), an optional open exercise, sets already logged, and either the expected resolved
+    sets or `expect_reject`. Every exercise is planned at a synthetic 10 / 12.5 / 15 kg, so
+    plan-filled weights are stable.
+  - **What the report shows:**
+    - exact match over all cases;
+    - for set logs: exercise, reps and weights accuracy;
+    - for rejections: the share correctly rejected (any 422 counts);
+    - provider errors (counted as wrong);
+    - p50/p95 latency;
+    - measured tokens and cost per call (`-usd-in`, `-usd-out`, `-inr-per-usd`);
+    - a list of every wrong case.
+  - **Speech-to-text, measured separately.** The test page's capture mode shows each phrase. You
+    read it aloud on the phone under test, and it records the browser transcript. The download
+    (`stt.jsonl`) is scored with `make voice-eval ARGS="-stt <file>"` for normalised exact match
+    and word error rate. Normalising lowercases, drops punctuation, turns English number words
+    into digits and unifies kg/lb spellings, because "20" for a spoken "twenty" is correct.
+    Hindi number words aren't converted.
+  - **Phrase sources.** The 43 cases in the repo are `source: drafted`, written by us to cover each
+    exercise, number words, lb, Hinglish, "3 sets of 10", open-exercise and resume cases, and 7
+    rejections. A test checks that a perfect parser scores 100% on them, so the file, `Resolve` and
+    the scorer agree.
+- **Bar for turning `voice.enabled` on (proposal, fixed before measuring):**
+  - at least 100 `real` phrases from gym members;
+  - extraction exact match ≥ 90%;
+  - rejections ≥ 95% correct;
+  - p95 latency ≤ 3 s;
+  - STT WER measured on at least one real Android phone and one iPhone, and reported (no bar,
+    because the LLM absorbs much of it).
+- **Why:** The spec asks to measure STT and extraction separately, with latency and cost, and to
+  put only measured numbers on the resume. Drafted phrases test the pipeline but say nothing about
+  real speech, so the report flags a run with no real cases. Fixing the bar first means a bar can't
+  be chosen afterwards to fit the result.
+- **Measured results:** none yet. Fill in after a run on real phrases: date, model, cases (real),
+  exact %, reject %, p50/p95, $ and ₹ per call, and STT WER per device.

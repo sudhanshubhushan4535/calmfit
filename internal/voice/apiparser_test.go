@@ -59,7 +59,7 @@ func TestAPIParserRequestAndReply(t *testing.T) {
 			t.Errorf("decode request: %v", err)
 		}
 		respond(200, reply("end_turn",
-			`{"understood":true,"exercise_id":"Incline_Dumbbell_Press","unit":"kg","sets":[{"weight":60,"reps":8},{"weight":null,"reps":8},{"weight":null,"reps":7}]}`))(w, r)
+			`{"understood":true,"exercise_id":"Incline_Dumbbell_Press","other_exercise":false,"unit":"kg","sets":[{"weight":60,"reps":8},{"weight":null,"reps":8},{"weight":null,"reps":7}]}`))(w, r)
 	})
 
 	parsed, usage, err := p.ParseWithUsage(context.Background(), "incline 60, 8 8 7", pushCandidates)
@@ -116,9 +116,22 @@ func TestAPIParserRequestAndReply(t *testing.T) {
 	}
 }
 
+func TestAPIParserPassesOtherExercise(t *testing.T) {
+	p := fakeAPI(t, respond(200, reply("end_turn",
+		`{"understood":true,"exercise_id":"","other_exercise":true,"unit":"kg","sets":[{"weight":60,"reps":5}]}`)))
+	got, err := p.Parse(context.Background(), "squat 60, 5", pushCandidates)
+	if err != nil || !got.OtherExercise || got.ExerciseID != "" {
+		t.Fatalf("got %+v, %v; want OtherExercise", got, err)
+	}
+	props := outputSchema(pushCandidates)["properties"].(map[string]any)
+	if _, ok := props["other_exercise"]; !ok {
+		t.Error("schema lacks other_exercise")
+	}
+}
+
 func TestAPIParserCouldNotParse(t *testing.T) {
 	for name, body := range map[string]string{
-		"not a set log": reply("end_turn", `{"understood":false,"exercise_id":"","unit":"","sets":[]}`),
+		"not a set log": reply("end_turn", `{"understood":false,"exercise_id":"","other_exercise":false,"unit":"","sets":[]}`),
 		"refusal":       reply("refusal", ``),
 		"truncated":     reply("max_tokens", `{"understood":true,"exercise_id":"Incl`),
 	} {
@@ -134,11 +147,12 @@ func TestAPIParserCouldNotParse(t *testing.T) {
 
 func TestAPIParserOffSchemaReplyIsProviderError(t *testing.T) {
 	for name, text := range map[string]string{
-		"not JSON":          `sure! incline 60`,
-		"missing field":     `{"understood":true,"exercise_id":"","sets":[]}`,
-		"unknown field":     `{"understood":true,"exercise_id":"","unit":"","sets":[],"note":"x"}`,
-		"exercise not sent": `{"understood":true,"exercise_id":"Barbell_Squat","unit":"","sets":[{"weight":null,"reps":5}]}`,
-		"unknown unit":      `{"understood":true,"exercise_id":"","unit":"stone","sets":[{"weight":3,"reps":5}]}`,
+		"not JSON":               `sure! incline 60`,
+		"other_exercise missing": `{"understood":true,"exercise_id":"","unit":"","sets":[]}`,
+		"missing field":          `{"understood":true,"exercise_id":"","other_exercise":false,"sets":[]}`,
+		"unknown field":          `{"understood":true,"exercise_id":"","other_exercise":false,"unit":"","sets":[],"note":"x"}`,
+		"exercise not sent":      `{"understood":true,"exercise_id":"Barbell_Squat","other_exercise":false,"unit":"","sets":[{"weight":null,"reps":5}]}`,
+		"unknown unit":           `{"understood":true,"exercise_id":"","other_exercise":false,"unit":"stone","sets":[{"weight":3,"reps":5}]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			p := fakeAPI(t, respond(200, reply("end_turn", text)))
@@ -182,7 +196,7 @@ func script(calls *atomic.Int32, release <-chan struct{}, steps ...string) http.
 		case "400":
 			respond(400, `{"type":"error","error":{"type":"invalid_request_error","message":"bad"}}`)(w, r)
 		case "ok":
-			respond(200, reply("end_turn", `{"understood":true,"exercise_id":"","unit":"","sets":[{"weight":null,"reps":8}]}`))(w, r)
+			respond(200, reply("end_turn", `{"understood":true,"exercise_id":"","other_exercise":false,"unit":"","sets":[{"weight":null,"reps":8}]}`))(w, r)
 		}
 	}
 }

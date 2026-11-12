@@ -132,6 +132,7 @@ func TestResolveRejects(t *testing.T) {
 		{"no exercise and nothing open", Parsed{Sets: []ParsedSet{{nil, 8}}}, "", CodeNoExercise},
 		{"exercise not in today's workout", Parsed{ExerciseID: "Barbell_Squat", Sets: []ParsedSet{{nil, 8}}}, "", CodeNotInWorkout},
 		{"hint not in today's workout", Parsed{Sets: []ParsedSet{{nil, 8}}}, "Barbell_Squat", CodeNotInWorkout},
+		{"another day's exercise named: the open one must not stand in", Parsed{OtherExercise: true, Sets: []ParsedSet{{w(60), 5}}}, "Incline_Dumbbell_Press", CodeNotInWorkout},
 		{"cold start not answered", Parsed{ExerciseID: "Butterfly", Unit: KG, Sets: []ParsedSet{{w(40), 12}}}, "", CodeNeedsUsualWeight},
 		{"no sets", Parsed{ExerciseID: inc}, "", CodeNoSets},
 		{"four sets", Parsed{ExerciseID: inc, Sets: []ParsedSet{{nil, 8}, {nil, 8}, {nil, 8}, {nil, 8}}}, "", CodeTooManySets},

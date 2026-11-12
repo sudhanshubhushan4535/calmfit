@@ -76,6 +76,8 @@ Fields:
   aliases, short forms and near-misspellings (e.g. "incline" or "incline dumbell" means the incline
   dumbbell press). Use "" if no exercise was named, or if the words could fit more than one
   exercise. Never pick an exercise that is not in the list.
+- other_exercise: true if the speaker named an exercise that is not in the list (e.g. "squat" when
+  no squat is listed); exercise_id is then "". false otherwise, including when no exercise was named.
 - unit: "kg" if kilos/kg was said, "lb" if pounds/lbs was said, "" if no unit was said.
 - sets: one entry per set, in the order said. reps is the reps done in that set. weight is the
   weight said for that set as a number, or null if no new weight was said for it. When one weight
@@ -95,11 +97,12 @@ func outputSchema(candidates []Candidate) map[string]any {
 	return map[string]any{
 		"type":                 "object",
 		"additionalProperties": false,
-		"required":             []any{"understood", "exercise_id", "unit", "sets"},
+		"required":             []any{"understood", "exercise_id", "other_exercise", "unit", "sets"},
 		"properties": map[string]any{
-			"understood":  map[string]any{"type": "boolean"},
-			"exercise_id": map[string]any{"type": "string", "enum": ids},
-			"unit":        map[string]any{"type": "string", "enum": []any{"", "kg", "lb"}},
+			"understood":     map[string]any{"type": "boolean"},
+			"exercise_id":    map[string]any{"type": "string", "enum": ids},
+			"other_exercise": map[string]any{"type": "boolean"},
+			"unit":           map[string]any{"type": "string", "enum": []any{"", "kg", "lb"}},
 			"sets": map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -130,10 +133,11 @@ func userMessage(transcript string, candidates []Candidate) (string, error) {
 
 // output is the model's JSON, exactly as outputSchema describes it.
 type output struct {
-	Understood bool        `json:"understood"`
-	ExerciseID string      `json:"exercise_id"`
-	Unit       Unit        `json:"unit"`
-	Sets       []ParsedSet `json:"sets"`
+	Understood    bool        `json:"understood"`
+	ExerciseID    string      `json:"exercise_id"`
+	OtherExercise bool        `json:"other_exercise"`
+	Unit          Unit        `json:"unit"`
+	Sets          []ParsedSet `json:"sets"`
 }
 
 // Parse implements Parser.
@@ -184,7 +188,7 @@ func (p *APIParser) ParseWithUsage(ctx context.Context, transcript string, candi
 	if !out.Understood {
 		return Parsed{}, usage, ErrCouldNotParse
 	}
-	return Parsed{ExerciseID: out.ExerciseID, Unit: out.Unit, Sets: out.Sets}, usage, nil
+	return Parsed{ExerciseID: out.ExerciseID, OtherExercise: out.OtherExercise, Unit: out.Unit, Sets: out.Sets}, usage, nil
 }
 
 // call sends the request within the overall deadline, retrying a retryable failure once if at
@@ -239,18 +243,20 @@ func decodeOutput(text string, candidates []Candidate) (output, error) {
 	dec := json.NewDecoder(bytes.NewReader([]byte(text)))
 	dec.DisallowUnknownFields()
 	var raw struct {
-		Understood *bool        `json:"understood"`
-		ExerciseID *string      `json:"exercise_id"`
-		Unit       *Unit        `json:"unit"`
-		Sets       *[]ParsedSet `json:"sets"`
+		Understood    *bool        `json:"understood"`
+		ExerciseID    *string      `json:"exercise_id"`
+		OtherExercise *bool        `json:"other_exercise"`
+		Unit          *Unit        `json:"unit"`
+		Sets          *[]ParsedSet `json:"sets"`
 	}
 	if err := dec.Decode(&raw); err != nil {
 		return output{}, fmt.Errorf("%w: reply is not the expected JSON: %v", ErrProvider, err)
 	}
-	if raw.Understood == nil || raw.ExerciseID == nil || raw.Unit == nil || raw.Sets == nil {
+	if raw.Understood == nil || raw.ExerciseID == nil || raw.OtherExercise == nil || raw.Unit == nil || raw.Sets == nil {
 		return output{}, fmt.Errorf("%w: reply is missing a required field", ErrProvider)
 	}
-	out := output{Understood: *raw.Understood, ExerciseID: *raw.ExerciseID, Unit: *raw.Unit, Sets: *raw.Sets}
+	out := output{Understood: *raw.Understood, ExerciseID: *raw.ExerciseID, OtherExercise: *raw.OtherExercise,
+		Unit: *raw.Unit, Sets: *raw.Sets}
 	switch out.Unit {
 	case "", KG, LB:
 	default:

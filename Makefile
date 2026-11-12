@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: db-up kafka-up redis-up topics migrate-up migrate-down migrate-status seed run relay worker dlq-replay test-db test
+.PHONY: db-up kafka-up redis-up topics migrate-up migrate-down migrate-status seed run relay worker dlq-replay voice-eval test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -47,6 +47,11 @@ worker:
 # Re-publish DLQ records to workout-events after a fix. List first: make dlq-replay ARGS=-dry-run
 dlq-replay:
 	go run ./cmd/dlq-replay $(ARGS)
+
+# Voice eval (D36). Dry run by default; ARGS=-yes calls the real API (costs money);
+# ARGS="-stt eval/voice/stt.jsonl" scores captured speech-to-text without calling anything.
+voice-eval:
+	go run ./cmd/voice-eval $(ARGS)
 
 # Create calmfit_test on the compose Postgres if missing, migrate it, and load the seed (idempotent)
 test-db:
