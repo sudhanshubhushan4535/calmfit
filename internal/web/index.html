@@ -59,6 +59,7 @@
   <button id="start" type="button">Start / resume workout</button>
   <div id="workout"></div>
   <p id="werr" class="err"></p>
+  <div id="remind" class="card" hidden></div>
 
   <h3>Voice (needs <code>voice.enabled</code>; otherwise parse returns 404)</h3>
   <p class="muted">Say e.g. "incline 20, 12 10 8". Nothing is saved until you press Confirm, which logs each set
@@ -260,6 +261,50 @@
       return card;
     }
 
+    // ---- Reminders (D47): offered only after a completed workout, and only while the browser
+    // hasn't been asked yet. The permission prompt itself needs a tap (iPhone requires it).
+    const remindEl = document.getElementById('remind');
+    const DECLINED = 'calmfit.reminders.declined';
+    function b64ToBytes(s) {
+      const b = atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+      return Uint8Array.from(b, c => c.charCodeAt(0));
+    }
+    async function offerReminders() {
+      let declined = false;
+      try { declined = localStorage.getItem(DECLINED) === '1'; } catch (_) {}
+      if (declined || !('Notification' in window) || Notification.permission !== 'default') {
+        // iPhone Safari outside the home-screen app has no Web Push at all.
+        if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !declined) {
+          remindEl.replaceChildren(el('div', { class: 'muted' }, 'Want workout-day reminders? Add CalmFit to your Home Screen first (see above), then open it from there.'));
+          remindEl.hidden = false;
+        }
+        return;
+      }
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      const r = await fetch('/push/key');
+      if (!r.ok) return; // reminders aren't configured on this server
+      const { public_key } = await r.json();
+      const done = text => { remindEl.replaceChildren(el('div', { class: 'muted' }, text)); };
+      remindEl.replaceChildren(
+        el('h3', {}, 'Get a reminder on workout days?'),
+        el('div', { class: 'muted' }, 'One short message in the morning, e.g. "Pull day today. Beat 45 kg on the lat pulldown."'),
+        el('div', { class: 'row' },
+          el('button', { type: 'button', onclick: async () => {
+            try {
+              if (await Notification.requestPermission() !== 'granted') { done('Reminders are off. You can turn them on in your browser settings.'); return; }
+              const reg = await navigator.serviceWorker.ready;
+              const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(public_key) });
+              await api('POST', '/push/subscribe', sub.toJSON());
+              done('Reminders on. You can turn them off in your browser settings.');
+            } catch (e) { done('Could not turn on reminders: ' + e.message); }
+          } }, 'Yes, remind me'),
+          el('button', { type: 'button', onclick: () => {
+            try { localStorage.setItem(DECLINED, '1'); } catch (_) {}
+            remindEl.hidden = true;
+          } }, 'Not now')));
+      remindEl.hidden = false;
+    }
+
     async function finish() {
       const sum = await api('POST', `/workouts/${wo.id}/complete`);
       wo = null;
@@ -279,6 +324,7 @@
         }
         wEl.append(card);
       }
+      offerReminders().catch(() => {});
     }
 
     // ---- Voice: speech-to-text in the browser, parse on the server, confirm via POST /sets ----

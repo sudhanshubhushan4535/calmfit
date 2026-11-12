@@ -85,6 +85,12 @@ func run() error {
 		log.Printf("voice logging on (%s, %d parses per user per day)", cfg.Voice.Model, cfg.Voice.DailyLimit)
 	}
 
+	// Reminders are optional: without a VAPID public key the push routes don't exist (D47).
+	if key := os.Getenv("VAPID_PUBLIC_KEY"); key != "" {
+		opts = append(opts, server.WithPush(key))
+		log.Printf("web push on")
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

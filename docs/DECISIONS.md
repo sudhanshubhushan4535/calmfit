@@ -620,3 +620,40 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
 - **Why:** This is the simplest approach. A Go renderer would need embedded fonts and text layout
   for one image a week. The browser already has both, and the review endpoint already has the
   data. The spec's cut order lists the share card first, so it got the cheapest design.
+
+### D47. Workout-day reminders: who, when, what, and how
+- **When to ask:** Only after a completed workout, and only while the browser hasn't been asked
+  (`Notification.permission === 'default'`) and the user hasn't tapped "Not now". The system
+  prompt opens only from the user's tap. On iPhone outside the home-screen app there is no Web
+  Push, so the app says to add it to the Home Screen first.
+- **Who is due (user decision D-B, Day 7):** onboarded, active, subscribed, not reminded today,
+  no workout started today, and at least `max(1, floor(7 / days_per_week))` local days since the
+  last completed workout. That gives 2/wk → every 3 days, 3/wk → every 2 days, 4–6/wk → daily.
+  A user with no completed workout is due. Workouts aren't tied to weekdays (spec), so there's no
+  weekday setting.
+- **When:** `cmd/reminders` runs once a day from cron at 07:30 Asia/Kolkata. The `reminder_log`
+  row (user, local date) is written *before* sending, so a reminder goes out at most once per day
+  even if two runs overlap. A failed send isn't retried that day (no spam beats no miss).
+- **What:** "Pull day today. Beat 45 kg on the lat pulldown." Pull = the next workout's day. 45 kg
+  = the engine's set-1 target for the day's first exercise that has a plan, from `workout.Next`,
+  the same function behind `GET /workouts/next`, so a reminder can't disagree with the app. The
+  exercise name drops its "(…)" detail and is lowercased. With no plan yet it says "Pull day
+  today. Your plan is ready."
+- **How:** `github.com/SherClockHolmes/webpush-go` (MIT) for VAPID (RFC 8292) and aes128gcm
+  encryption (RFC 8291); user decision D-C, Day 7. TTL 12 h. A 404/410 from the push service
+  deletes that subscription. Errors log only the push service host, never the endpoint (it works
+  like a password for that browser).
+  - **Keys:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` come from env only;
+    `make vapid-keys` prints a pair and writes nothing. Without the public key the API has no
+    `/push/*` routes.
+- **Subscriptions:** one row per endpoint (one browser). The latest user to subscribe from that
+  browser owns it. Only https endpoints on known push services (`fcm.googleapis.com`,
+  `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`) on the default port
+  are accepted: the server POSTs to that URL, so anything else would be an SSRF hole. Keys must
+  decode to a 65-byte uncompressed P-256 point and a 16-byte secret. DELETE only removes the
+  caller's own row and always answers 204.
+- **Account deletion and export:** both tables are user data: deleted with the account, and
+  exported (subscriptions without their keys).
+- **Tested:** an integration test sends through the real `WebPush` sender to a fake push service,
+  decrypts the RFC 8291 body with a browser-style key pair, and checks the payload text, the VAPID
+  header, the 410 cleanup and that a second run the same day sends nothing.

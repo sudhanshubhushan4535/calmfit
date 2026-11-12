@@ -37,3 +37,24 @@ self.addEventListener('fetch', e => {
   // Icons, manifest, script: cache first (the cache name changes with every shell change).
   e.respondWith(caches.match(url.pathname).then(hit => hit || fetch(req)));
 });
+
+// Workout-day reminders (D47). The payload is {title, body, url}, sent by cmd/reminders.
+self.addEventListener('push', e => {
+  let msg = { title: 'CalmFit', body: 'Your next workout is ready.', url: '/app' };
+  try { msg = { ...msg, ...e.data.json() }; } catch (_) {}
+  e.waitUntil(self.registration.showNotification(msg.title, {
+    body: msg.body, icon: '/static/icons/icon-192.png', badge: '/static/icons/icon-192.png',
+    tag: 'workout-reminder', data: { url: msg.url },
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  let target = new URL((e.notification.data && e.notification.data.url) || '/app', self.location.origin);
+  if (target.origin !== self.location.origin) target = new URL('/app', self.location.origin); // never open another site
+  target = target.href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(wins => {
+    const open = wins.find(w => w.url === target);
+    return open ? open.focus() : self.clients.openWindow(target);
+  }));
+});

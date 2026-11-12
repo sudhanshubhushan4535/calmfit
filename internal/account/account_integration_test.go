@@ -67,6 +67,16 @@ func (e *env) populate(t *testing.T, c *http.Client, uid string) string {
 		INSERT INTO weekly_stats (user_id, week_start, workouts, sets, volume_g) VALUES ($1::uuid, '2026-11-09', 1, 1, 60000)`, uid); err != nil {
 		t.Fatal(err)
 	}
+	// Push rows go straight into the DB: the subscribe route only exists with a VAPID key.
+	if _, err := e.db.Exec(context.Background(), `
+		INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth) VALUES ($1, $2::uuid, 'k', 'a')`,
+		"https://fcm.googleapis.com/fcm/send/"+uid, uid); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.Exec(context.Background(), `
+		INSERT INTO reminder_log (user_id, local_date) VALUES ($1::uuid, '2026-11-10')`, uid); err != nil {
+		t.Fatal(err)
+	}
 	return w.ID
 }
 
@@ -97,7 +107,8 @@ func (e *env) count(t *testing.T, table, uid string) int {
 	return n
 }
 
-var ownedTables = []string{"sessions", "user_programs", "workouts", "workout_exercises", "workout_sets", "plate_checks", "weekly_stats"}
+var ownedTables = []string{"sessions", "user_programs", "workouts", "workout_exercises", "workout_sets", "plate_checks", "weekly_stats",
+	"push_subscriptions", "reminder_log"}
 
 func TestDeleteAccount(t *testing.T) {
 	e := setup(t)
@@ -232,6 +243,10 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 		Sessions []struct {
 			CreatedAt time.Time `json:"created_at"`
 		}
+		PushSubscriptions []map[string]any `json:"push_subscriptions"`
+		Reminders         []struct {
+			LocalDate string `json:"local_date"`
+		}
 	}
 	if err := json.Unmarshal(raw, &x); err != nil {
 		t.Fatal(err)
@@ -254,6 +269,12 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 	if logged != 1 || len(x.PlateChecks) != 1 || len(x.WeeklyStats) != 1 || x.WeeklyStats[0].VolumeG != 60000 ||
 		len(x.Sessions) != 1 || x.Sessions[0].CreatedAt.IsZero() {
 		t.Fatalf("sets=%d plate=%d stats=%+v sessions=%+v", logged, len(x.PlateChecks), x.WeeklyStats, x.Sessions)
+	}
+	// Subscriptions are exported without their encryption keys.
+	if len(x.PushSubscriptions) != 1 || x.PushSubscriptions[0]["endpoint"] != "https://fcm.googleapis.com/fcm/send/"+uidA ||
+		x.PushSubscriptions[0]["p256dh"] != nil || x.PushSubscriptions[0]["auth"] != nil ||
+		len(x.Reminders) != 1 || x.Reminders[0].LocalDate != "2026-11-10" {
+		t.Fatalf("push=%v reminders=%+v", x.PushSubscriptions, x.Reminders)
 	}
 }
 

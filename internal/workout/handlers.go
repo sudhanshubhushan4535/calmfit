@@ -201,45 +201,51 @@ func nextDay(ctx context.Context, q querier, uid string, lock bool) (p Preview, 
 
 func (h *Handler) next(w http.ResponseWriter, r *http.Request) {
 	uid, _ := auth.UserID(r.Context())
-	ctx := r.Context()
-
-	p, xs, ok, err := nextDay(ctx, h.DB, uid, false)
+	p, ok, err := Next(r.Context(), h.DB, uid)
 	if err != nil {
-		httpx.InternalError(w, "workout: next day", err)
+		httpx.InternalError(w, "workout: next", err)
 		return
 	}
 	if !ok {
 		httpx.WriteError(w, http.StatusConflict, errOnboardingRequired)
 		return
 	}
+	httpx.WriteJSON(w, http.StatusOK, p)
+}
+
+// Next builds the "your next workout" preview with the engine's plan for each exercise, exactly as
+// GET /workouts/next returns it. The reminder sender uses it too, so a reminder can never disagree
+// with the app. ok=false means the user isn't onboarded.
+func Next(ctx context.Context, q querier, uid string) (Preview, bool, error) {
+	p, xs, ok, err := nextDay(ctx, q, uid, false)
+	if err != nil || !ok {
+		return Preview{}, ok, err
+	}
 	var inProgress string
-	err = h.DB.QueryRow(ctx, `SELECT id::text FROM workouts WHERE user_id = $1::uuid AND status = 'in_progress'`, uid).Scan(&inProgress)
+	err = q.QueryRow(ctx, `SELECT id::text FROM workouts WHERE user_id = $1::uuid AND status = 'in_progress'`, uid).Scan(&inProgress)
 	switch {
 	case err == nil:
 		p.InProgressWorkoutID = &inProgress
 	case !errors.Is(err, pgx.ErrNoRows):
-		httpx.InternalError(w, "workout: in-progress lookup", err)
-		return
+		return Preview{}, false, fmt.Errorf("in-progress lookup: %w", err)
 	}
 
 	p.Exercises = []Exercise{}
 	for _, x := range xs {
-		plan, err := planFor(ctx, h.DB, uid, x.Cfg)
+		plan, err := planFor(ctx, q, uid, x.Cfg)
 		if err != nil {
-			httpx.InternalError(w, "workout: preview plan", err)
-			return
+			return Preview{}, false, fmt.Errorf("preview plan: %w", err)
 		}
 		ex, err := newExercise(x, plan)
 		if err != nil {
-			httpx.InternalError(w, "workout: preview exercise", err)
-			return
+			return Preview{}, false, fmt.Errorf("preview exercise: %w", err)
 		}
 		if plan != nil {
 			ex.Remaining = plan.Sets
 		}
 		p.Exercises = append(p.Exercises, ex)
 	}
-	httpx.WriteJSON(w, http.StatusOK, p)
+	return p, true, nil
 }
 
 func (h *Handler) start(w http.ResponseWriter, r *http.Request) {

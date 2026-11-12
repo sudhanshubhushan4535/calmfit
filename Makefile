@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: backup restore-test drill-worker-kill drill-redis drill-duplicate drill-malformed drill-replay bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
+.PHONY: reminders vapid-keys backup restore-test drill-worker-kill drill-redis drill-duplicate drill-malformed drill-replay bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -116,6 +116,15 @@ drill-malformed:
 # TRUNCATEs weekly_stats + processed_events for every user and rebuilds them from Kafka (D28)
 drill-replay:
 	scripts/drills/replay.sh
+
+# Workout-day reminders (D47): one run sends today's reminders once (cron, 07:30 IST on the VM).
+# ARGS=-dry-run lists who is due and the text; ARGS="-user <uuid>" limits it to one user.
+reminders:
+	go run ./cmd/reminders $(ARGS)
+
+# Prints a new VAPID key pair to paste into .env (never written to a file)
+vapid-keys:
+	@go run ./cmd/reminders -keygen
 
 # Backups (README "Backups and restore", D43): pg_dump -Fc into ./backups (gitignored) with a
 # row-count manifest from the same snapshot. Client tools come from the postgres:16 image unless
