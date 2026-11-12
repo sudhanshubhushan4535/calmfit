@@ -448,3 +448,37 @@ Day 6's failure drills.
   be chosen afterwards to fit the result.
 - **Measured results:** none yet. Fill in after a run on real phrases: date, model, cases (real),
   exact %, reject %, p50/p95, $ and ₹ per call, and STT WER per device.
+
+## Day 6
+
+### Hosting
+Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
+
+### D37. Where are metrics exposed?
+- **Choice:** On a separate listener, `METRICS_ADDR`: the API uses `:9101` and the workers use
+  `:9102` / `:9103`. Nothing is served on the public API port 8080. The metrics are:
+  - **API:**
+    - `calmfit_http_request_duration_seconds{route,method,code}`. `route` is the ServeMux pattern,
+      or `unmatched`. `code` is the class (`2xx`/`4xx`/`5xx`). Buckets run from 5 ms to 5 s.
+    - `calmfit_outbox_unpublished` and `calmfit_outbox_oldest_unpublished_seconds`, read from the
+      DB at scrape time.
+  - **Worker:**
+    - `calmfit_worker_events_total{outcome}` and `calmfit_worker_retries_total`.
+    - `calmfit_kafka_consumer_lag{partition}` (end − committed, or end − log start when nothing is
+      committed) and `calmfit_kafka_dlq_records` (Σ end − start), read from the broker at scrape
+      time. Both workers report the same group-wide numbers, so the dashboard takes `max`.
+  - **Errors:** a failed DB or broker read reports `*_scrape_ok 0` and doesn't fail the scrape.
+- **Why:** nginx will proxy 8080 to the internet on the VM. Metrics reveal traffic and internals,
+  so they stay on a port nginx never proxies. The route pattern keeps label cardinality fixed (an
+  id in the path can't create series). The status class is enough for an error rate.
+
+### D38. How is the uptime alert delivered?
+- **Choice:** One Prometheus rule, `CalmFitAPIDown` (`up{job="api"} == 0` or absent, for 1m).
+  There is no Alertmanager: the alert shows in Prometheus (`/alerts`) and next to the dashboard.
+  Prometheus (`127.0.0.1:9095`) and Grafana (`127.0.0.1:3001`) run only with `make obs-up`
+  (compose profile `obs`) and are bound to loopback. The Grafana admin password comes from `.env`.
+- **Why:** The spec asks for "an uptime alert" and no dashboard polishing. A notification channel
+  (email, Telegram, …) needs a decision about who gets paged during the pilot. That's a Day 7
+  deployment choice, not a code change.
+- **Measured (local Mac):** after the API stopped, the alert was pending at the next scrape
+  (≤ 15 s) and firing ~90 s after the stop. It cleared after the restart.

@@ -1,0 +1,16 @@
+# Scrapes the API and the two workers on their metrics ports (D37). They run on the host, so
+# targets are host.docker.internal. Day 7 (VM, everything in compose) swaps in service names.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: api
+    static_configs:
+      - targets: ["host.docker.internal:9101"]
+  - job_name: worker
+    static_configs:
+      - targets: ["host.docker.internal:9102", "host.docker.internal:9103"]

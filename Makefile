@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: db-up kafka-up redis-up topics migrate-up migrate-down migrate-status seed run relay worker dlq-replay voice-eval test-db test
+.PHONY: db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed run relay worker dlq-replay voice-eval test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -12,6 +12,15 @@ kafka-up:
 
 redis-up:
 	docker compose up -d --wait redis
+
+# Prometheus (http://localhost:9095) + Grafana (http://localhost:3001, admin / GRAFANA_ADMIN_PASSWORD).
+# Profile "obs": they start only here, never with the other services.
+obs-up:
+	@test -n "$(GRAFANA_ADMIN_PASSWORD)" || { echo "set GRAFANA_ADMIN_PASSWORD in .env"; exit 1; }
+	docker compose --profile obs up -d --wait prometheus grafana
+
+obs-down:
+	docker compose --profile obs stop prometheus grafana
 
 # Idempotent. Partitions and retention are explicit because broker auto-create is off.
 # retention.ms=-1: a full rebuild re-reads workout-events from offset 0 (see docs/DECISIONS.md).

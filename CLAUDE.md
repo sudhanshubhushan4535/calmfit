@@ -14,13 +14,15 @@ and for a small gym pilot.
 - API: **8080**. The old `calmfit-backend` container also uses 8080 and must stay stopped.
 - Kafka: **9094** from the host (`kafka:9092` inside compose).
 - Redis: **6380** from the host (rate limiting only). 6379 belongs to the old stack and a local redis-server.
+- Metrics (D37): API **9101**, workers **9102** / **9103** (`METRICS_ADDR`). Prometheus **9095**, Grafana **3001** (loopback only).
 
 ## Make targets
 - `db-up`: start Postgres and wait until healthy
 - `redis-up`: start Redis (rate limiting only) and wait until healthy
 - `kafka-up` / `topics`: start the broker; create `workout-events` and `workout-events-dlq` (idempotent)
+- `obs-up` / `obs-down`: Prometheus + Grafana (compose profile `obs`), one provisioned dashboard + uptime alert
 - `relay`: publish outbox rows to Kafka (run exactly one)
-- `worker`: consume `workout-events` in group `calmfit-stats` into `weekly_stats` (run 2)
+- `worker`: consume `workout-events` in group `calmfit-stats` into `weekly_stats` (run 2; the second with `METRICS_ADDR=:9103`)
 - `dlq-replay`: re-publish DLQ records after a fix; `ARGS=-dry-run` lists them, `ARGS="-max N"` limits
 - `migrate-up` / `migrate-down` / `migrate-status`: goose against `DATABASE_URL`
 - `seed`: validate `seed/*.json`, upsert in one transaction (idempotent)

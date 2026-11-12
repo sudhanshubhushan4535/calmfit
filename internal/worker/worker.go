@@ -164,12 +164,14 @@ func (w *Worker) Handle(ctx, work context.Context, r *kgo.Record) error {
 		out, eventID, err = w.Apply(work, r.Value)
 		if err == nil {
 			log.Printf("worker: %s event %s %s", where, eventID, out)
+			eventsTotal.WithLabelValues(string(out)).Inc()
 			return nil
 		}
 		if IsPermanent(err) || attempt == maxAttempts {
 			break
 		}
 		log.Printf("worker: %s event %s attempt %d/%d failed: %v", where, eventID, attempt, maxAttempts, err)
+		retriesTotal.Inc()
 		// Full jitter in [d/2, d): instances retrying the same outage don't hit the DB in lockstep.
 		d := backoff << (attempt - 1)
 		d = d/2 + rand.N(d/2)
@@ -184,6 +186,7 @@ func (w *Worker) Handle(ctx, work context.Context, r *kgo.Record) error {
 	if perr := w.Client.ProduceSync(work, w.dlqRecord(r, err, attempt)).FirstErr(); perr != nil {
 		return fmt.Errorf("worker: %s: DLQ produce failed, not committing: %w (cause: %v)", where, perr, err)
 	}
+	eventsTotal.WithLabelValues(string(OutcomeDLQ)).Inc()
 	return nil
 }
 

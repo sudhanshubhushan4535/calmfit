@@ -1,0 +1,13 @@
+# One uptime alert (BUILD_SPEC). No Alertmanager yet (D38): the alert is visible in Prometheus
+# (/alerts) and on the dashboard; where it notifies is decided on Day 7.
+groups:
+  - name: calmfit
+    rules:
+      - alert: CalmFitAPIDown
+        expr: up{job="api"} == 0 or absent(up{job="api"})
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "CalmFit API is down"
+          description: "Prometheus could not scrape the API ({{ $labels.instance }}) for 1 minute."

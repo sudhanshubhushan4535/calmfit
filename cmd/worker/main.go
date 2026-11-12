@@ -12,9 +12,11 @@ import (
 	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/twmb/franz-go/pkg/kadm"
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
 	"github.com/sudhanshubhushan4535/calmfit/internal/events"
+	"github.com/sudhanshubhushan4535/calmfit/internal/metrics"
 	"github.com/sudhanshubhushan4535/calmfit/internal/worker"
 )
 
@@ -57,6 +59,18 @@ func run() error {
 	}
 	// Close leaves the group, so the other instance takes over these partitions at once.
 	defer client.Close()
+
+	// Default :9102; run the second instance with METRICS_ADDR=:9103 (D37).
+	metricsAddr := os.Getenv("METRICS_ADDR")
+	if metricsAddr == "" {
+		metricsAddr = ":9102"
+	}
+	reg := metrics.NewRegistry()
+	worker.RegisterMetrics(reg)
+	reg.MustRegister(worker.NewKafkaCollector(kadm.NewClient(client), worker.Group, events.Topic, events.DLQTopic))
+	if _, err := metrics.Start(ctx, metricsAddr, reg); err != nil {
+		return err
+	}
 
 	log.Printf("worker: consuming %s in group %s (pid %d)", events.Topic, worker.Group, os.Getpid())
 	err = (&worker.Worker{DB: pool, Client: client, Handlers: worker.DefaultHandlers(cfg),

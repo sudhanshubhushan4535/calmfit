@@ -16,12 +16,17 @@ import (
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
+	"github.com/sudhanshubhushan4535/calmfit/internal/metrics"
 	"github.com/sudhanshubhushan4535/calmfit/internal/ratelimit"
 	"github.com/sudhanshubhushan4535/calmfit/internal/server"
 	"github.com/sudhanshubhushan4535/calmfit/internal/voice"
 )
 
-const addr = ":8080"
+const (
+	addr = ":8080"
+	// defaultMetricsAddr is a separate listener so /metrics never sits on the public port (D37).
+	defaultMetricsAddr = ":9101"
+)
 
 func main() {
 	if err := run(); err != nil {
@@ -82,9 +87,16 @@ func run() error {
 		return fmt.Errorf("db ping: %w", err)
 	}
 
+	reg := metrics.NewRegistry()
+	httpMetrics := metrics.NewHTTP(reg)
+	reg.MustRegister(metrics.NewOutboxCollector(pool))
+	if _, err := metrics.Start(ctx, envOr("METRICS_ADDR", defaultMetricsAddr), reg); err != nil {
+		return err
+	}
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           server.New(pool, auth.GoogleVerifier{ClientID: clientID}, clientID, cfg, opts...),
+		Handler:           httpMetrics.Wrap(server.New(pool, auth.GoogleVerifier{ClientID: clientID}, clientID, cfg, opts...)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -122,4 +134,11 @@ func requireEnv(key string) (string, error) {
 		return "", fmt.Errorf("%s is not set (see .env.example)", key)
 	}
 	return v, nil
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }
