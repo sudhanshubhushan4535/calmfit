@@ -108,7 +108,7 @@ func (e *env) count(t *testing.T, table, uid string) int {
 }
 
 var ownedTables = []string{"sessions", "user_programs", "workouts", "workout_exercises", "workout_sets", "plate_checks", "weekly_stats",
-	"push_subscriptions", "reminder_log"}
+	"push_subscriptions", "reminder_log", "analytics_events"}
 
 func TestDeleteAccount(t *testing.T) {
 	e := setup(t)
@@ -243,7 +243,8 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 		Sessions []struct {
 			CreatedAt time.Time `json:"created_at"`
 		}
-		PushSubscriptions []map[string]any `json:"push_subscriptions"`
+		AnalyticsEvents   []struct{ Name string } `json:"analytics_events"`
+		PushSubscriptions []map[string]any        `json:"push_subscriptions"`
 		Reminders         []struct {
 			LocalDate string `json:"local_date"`
 		}
@@ -269,6 +270,14 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 	if logged != 1 || len(x.PlateChecks) != 1 || len(x.WeeklyStats) != 1 || x.WeeklyStats[0].VolumeG != 60000 ||
 		len(x.Sessions) != 1 || x.Sessions[0].CreatedAt.IsZero() {
 		t.Fatalf("sets=%d plate=%d stats=%+v sessions=%+v", logged, len(x.PlateChecks), x.WeeklyStats, x.Sessions)
+	}
+	// populate's flow: sign-up, one completed workout, one plate check.
+	var names []string
+	for _, ev := range x.AnalyticsEvents {
+		names = append(names, ev.Name)
+	}
+	if strings.Join(names, ",") != "signup_completed,first_workout_completed,workout_completed,plate_checked" {
+		t.Fatalf("analytics events: %v", names)
 	}
 	// Subscriptions are exported without their encryption keys.
 	if len(x.PushSubscriptions) != 1 || x.PushSubscriptions[0]["endpoint"] != "https://fcm.googleapis.com/fcm/send/"+uidA ||

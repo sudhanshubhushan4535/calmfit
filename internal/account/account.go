@@ -25,7 +25,7 @@ var (
 	// ExportedTables hold the user's own data: exported, and emptied on deletion.
 	// (users is anonymised into a tombstone rather than deleted.)
 	ExportedTables = []string{"users", "user_programs", "workouts", "workout_exercises", "workout_sets",
-		"plate_checks", "weekly_stats", "sessions", "push_subscriptions", "reminder_log"}
+		"plate_checks", "weekly_stats", "sessions", "push_subscriptions", "reminder_log", "analytics_events"}
 	// InternalTables are plumbing, not user data. The user's outbox rows are deleted on deletion,
 	// except the user.deleted event itself; processed_events holds only event ids.
 	InternalTables = []string{"outbox", "processed_events", "goose_db_version"}
@@ -71,6 +71,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 			`DELETE FROM weekly_stats WHERE user_id = $1::uuid`,
 			`DELETE FROM push_subscriptions WHERE user_id = $1::uuid`,
 			`DELETE FROM reminder_log WHERE user_id = $1::uuid`,
+			`DELETE FROM analytics_events WHERE user_id = $1::uuid`,
 			// Published or not: unpublished events would only be skipped by the worker anyway.
 			`DELETE FROM outbox WHERE user_id = $1::uuid`,
 			`UPDATE users SET deleted_at = now(), google_sub = NULL, email = '', name = NULL WHERE id = $1::uuid`,
@@ -106,6 +107,7 @@ type Export struct {
 	// Push subscriptions without their encryption keys, and the days a reminder was sent.
 	PushSubscriptions json.RawMessage `json:"push_subscriptions"`
 	Reminders         json.RawMessage `json:"reminders"`
+	AnalyticsEvents   json.RawMessage `json:"analytics_events"` // product events about this user (D48)
 }
 
 // Each query takes the user id as $1 and returns one JSON value.
@@ -146,6 +148,9 @@ var exportQueries = []struct {
 	{"reminders", `SELECT coalesce(json_agg(json_build_object('local_date', local_date, 'sent_at', sent_at)
 		ORDER BY local_date), '[]')
 		FROM reminder_log WHERE user_id = $1::uuid`},
+	{"analytics_events", `SELECT coalesce(json_agg(json_build_object('name', name, 'occurred_at', occurred_at)
+		ORDER BY occurred_at, id), '[]')
+		FROM analytics_events WHERE user_id = $1::uuid`},
 }
 
 // Load builds the export in one REPEATABLE READ transaction, so all sections are one snapshot.
@@ -153,7 +158,8 @@ func Load(ctx context.Context, db *pgxpool.Pool, uid string, now time.Time) (Exp
 	x := Export{ExportedAt: now.UTC()}
 	dest := map[string]*json.RawMessage{"user": &x.User, "program": &x.Program, "workouts": &x.Workouts,
 		"plate_checks": &x.PlateChecks, "weekly_stats": &x.WeeklyStats, "sessions": &x.Sessions,
-		"push_subscriptions": &x.PushSubscriptions, "reminders": &x.Reminders}
+		"push_subscriptions": &x.PushSubscriptions, "reminders": &x.Reminders,
+		"analytics_events": &x.AnalyticsEvents}
 	err := pgx.BeginTxFunc(ctx, db, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
 		for _, q := range exportQueries {
 			var b []byte

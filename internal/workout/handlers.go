@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/sudhanshubhushan4535/calmfit/internal/analytics"
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
 	"github.com/sudhanshubhushan4535/calmfit/internal/events"
@@ -587,6 +588,16 @@ func (h *Handler) complete(w http.ResponseWriter, r *http.Request) {
 			}
 			if err := outbox.Enqueue(ctx, tx, uid, events.TypeWorkoutLogged, events.V1, ev); err != nil {
 				return err
+			}
+			// Analytics (D48), also only on the transition: count includes this workout.
+			var completed int
+			if err := tx.QueryRow(ctx, `SELECT count(*) FROM workouts WHERE user_id = $1::uuid AND status = 'completed'`, uid).Scan(&completed); err != nil {
+				return fmt.Errorf("count completed: %w", err)
+			}
+			for _, name := range analytics.WorkoutEvents(completed) {
+				if err := analytics.Record(ctx, tx, uid, name); err != nil {
+					return err
+				}
 			}
 		}
 		// Already completed: no writes; the summary is recomputed and is the same (history is bounded by completed_at).

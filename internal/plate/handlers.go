@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/sudhanshubhushan4535/calmfit/internal/analytics"
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
 	"github.com/sudhanshubhushan4535/calmfit/internal/events"
@@ -106,9 +107,12 @@ func (h *Handler) put(w http.ResponseWriter, r *http.Request) {
 			uid, date, meal, *body.Protein, *body.Fiber); err != nil {
 			return fmt.Errorf("upsert: %w", err)
 		}
-		return outbox.Enqueue(ctx, tx, uid, events.TypePlateChecked, events.V1, events.PlateChecked{
+		if err := outbox.Enqueue(ctx, tx, uid, events.TypePlateChecked, events.V1, events.PlateChecked{
 			LocalDate: date.Format(time.DateOnly), Meal: meal, Protein: *body.Protein, Fiber: *body.Fiber,
-		})
+		}); err != nil {
+			return err
+		}
+		return analytics.Record(ctx, tx, uid, analytics.PlateChecked)
 	})
 	if err != nil {
 		httpx.InternalError(w, "plate: put", err)

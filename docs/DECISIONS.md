@@ -657,3 +657,33 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
 - **Tested:** an integration test sends through the real `WebPush` sender to a fake push service,
   decrypts the RFC 8291 body with a browser-style key pair, and checks the payload text, the VAPID
   header, the 410 cleanup and that a second run the same day sends nothing.
+
+### D48. How are analytics events stored, and how are the pilot metrics computed?
+- **Choice:** One table, `analytics_events` (user, name, occurred_at). A CHECK allows only the six
+  spec events. No third-party tracker and no props column.
+  - **Server-side, in the same transaction as the write:**
+    - `signup_completed` on the first insert of a user (`xmax = 0`). Signing in again isn't a signup.
+    - `workout_completed` on every in-progress → completed transition, plus
+      `first_`/`second_workout_completed` when it's the user's 1st/2nd completed workout. Repeating
+      `/complete` adds nothing.
+    - `plate_checked` on every successful plate PUT.
+  - **Client-side:** `next_target_viewed` only, through `POST /events`, which accepts that one name.
+    The app sends it when the "next time" screen or the next-workout preview is shown. Emitting it
+    server-side on `GET /workouts/next` would add a write to a k6-benchmarked read path.
+  - **Account deletion:** deletes the user's events (privacy first); the export includes them. A
+    deleted pilot user therefore leaves every metric.
+  - **Not backfilled:** users who signed up before migration 00016 have no `signup_completed`, so
+    they're never in a pilot cohort. Synthetic users have no events.
+- **Pilot metrics (`docs/PILOT_METRICS.sql`):** psql variables `pilot_start`, `pilot_end` (cohort
+  = signups in that window) and `as_of`. Every window is measured from the user's own signup time
+  in exact hours. A user is counted only once their window has fully ended by `as_of`, so a
+  reported number never changes later:
+  - activation = first workout within 24 h;
+  - second workout = within 7 days of the first, among activated users;
+  - week-2 = a workout in [signup + 7 d, signup + 14 d), among activated users;
+  - week 4 = a workout in [signup + 21 d, signup + 28 d), among all cohort users, target ≥ 5 people.
+- **Why:** The spec forbids a third-party tracker and says only workout activity counts as
+  retention. Writing events in the business transaction means an event exists if and only if the
+  thing it describes committed. A Go test runs every query in the SQL file against a hand-built
+  cohort with known answers, including boundary cases (exactly 48 h, exactly at `as_of`, a second
+  workout 8 days later).

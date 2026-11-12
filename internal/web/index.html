@@ -157,8 +157,16 @@
       }));
     });
 
+    // next_target_viewed (D48): sent once each time the next targets are shown; best effort.
+    function nextTargetViewed() {
+      fetch('/events', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'next_target_viewed' }) }).catch(() => {});
+    }
+
     document.getElementById('next').addEventListener('click', async () => {
-      await showResponse(await fetch('/workouts/next'));
+      const r = await fetch('/workouts/next');
+      if (r.ok) nextTargetViewed();
+      await showResponse(r);
     });
 
 
@@ -324,6 +332,7 @@
         }
         wEl.append(card);
       }
+      nextTargetViewed();
       offerReminders().catch(() => {});
     }
 

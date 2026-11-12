@@ -3,7 +3,10 @@ package auth
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/sudhanshubhushan4535/calmfit/internal/analytics"
 )
 
 // User is the public shape returned by /me and /auth/google.
@@ -16,13 +19,23 @@ type User struct {
 // upsertUser creates or refreshes the user for this Google sub and returns its id.
 // A deleted account's tombstone has google_sub NULL (users_tombstone_check), so it can never match:
 // signing in again with that Google account creates a new user.
+// A new user gets signup_completed in the same transaction (xmax = 0 only on a fresh insert).
 func upsertUser(ctx context.Context, db *pgxpool.Pool, id Identity) (string, error) {
 	var uid string
-	err := db.QueryRow(ctx, `
-		INSERT INTO users (google_sub, email, name) VALUES ($1, $2, $3)
-		ON CONFLICT (google_sub) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name
-		RETURNING id::text`,
-		id.Sub, id.Email, nullIfEmpty(id.Name)).Scan(&uid)
+	err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
+		var inserted bool
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO users (google_sub, email, name) VALUES ($1, $2, $3)
+			ON CONFLICT (google_sub) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name
+			RETURNING id::text, xmax = 0`,
+			id.Sub, id.Email, nullIfEmpty(id.Name)).Scan(&uid, &inserted); err != nil {
+			return err
+		}
+		if inserted {
+			return analytics.Record(ctx, tx, uid, analytics.SignupCompleted)
+		}
+		return nil
+	})
 	return uid, err
 }
 

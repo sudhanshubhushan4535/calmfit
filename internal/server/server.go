@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/account"
+	"github.com/sudhanshubhushan4535/calmfit/internal/analytics"
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
 	"github.com/sudhanshubhushan4535/calmfit/internal/exercise"
@@ -55,6 +56,7 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string, cfg config.Config, 
 	(&plate.Handler{DB: db, Cfg: cfg}).Register(mux, a.RequireUser)
 	(&exercise.Handler{DB: db}).Register(mux, a.RequireUser)
 	(&account.Handler{DB: db}).Register(mux, a.RequireUser)
+	(&analytics.Handler{DB: db, UserID: auth.UserID}).Register(mux, a.RequireUser)
 	if o.vapidPublic != "" {
 		(&reminder.Handler{DB: db, PublicKey: o.vapidPublic}).Register(mux, a.RequireUser)
 	}
