@@ -48,6 +48,9 @@ const (
 	MinReps         = 1
 	MaxReps         = 50
 	WarmupReps      = 2
+	// MaxWeightG caps a logged weight at the API (1000 kg: far above any real lift, keeps grams
+	// well inside int4). The engine itself only requires weight > 0.
+	MaxWeightG = 1_000_000
 )
 
 // Config is one exercise's settings, as seeded in the exercises table.

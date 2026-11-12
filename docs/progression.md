@@ -179,6 +179,9 @@ These are rejected with an `ErrInvalidInput` error:
 - a session without its prescribed plan;
 - a cold start with no usual weight and no "don't know".
 
+The API (set logging, cold start, voice) also rejects a weight above `MaxWeightG` (1000 kg) before
+the engine sees it.
+
 A bad exercise config (unknown equipment, scheme, size or movement, or a rep_step that doesn't
 match the scheme) returns an `ErrConfig` error.
 

@@ -28,7 +28,7 @@ const (
 	statusCompleted  = "completed"
 
 	maxBodyBytes = 4 << 10
-	maxWeightG   = 1_000_000 // 1000 kg: far above any real lift, keeps grams well inside int4
+	maxWeightG   = progression.MaxWeightG
 )
 
 // Error codes returned as {"error": code}.

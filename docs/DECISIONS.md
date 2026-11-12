@@ -278,3 +278,33 @@ Day 6's failure drills.
 - **Why:** The outbox duplicates data that is already exported, and processed_events holds only
   event ids. Reference data isn't the user's. Building the JSON in SQL keeps the export to one
   query per section.
+
+## Day 5
+
+### D31. How does a voice parse become sets?
+- **Choice:** The parser returns per-set `{weight | null, reps}`, an optional exercise and a unit.
+  `voice.Resolve` (pure Go) then:
+  1. **Exercise.** Uses the exercise that was said. If none was said, it uses the one open on screen
+     (with a warning). It must be in today's open workout, and its usual-weight question must be answered.
+  2. **Set numbers.** Sets are numbered from the first unlogged set, so "9 10" after set 1 is
+     logged becomes sets 2 and 3. More sets than are left → `too_many_sets`.
+  3. **Weights.** A set with no weight said takes the last weight said before it in the same phrase,
+     so "bench 60, 8 8 7" logs all three at 60. A set before any weight was said takes the plan's
+     target for that set, after in-session adjustment (R10). Each set says where its weight came
+     from (`said` / `plan`).
+  4. **Units.** No unit means kg. kg is kept to the gram. lb is converted and rounded to 0.1 kg,
+     with a warning.
+  5. **Ranges.** The same as tap logging: reps 1–50, weight > 0 and at most 1000 kg
+     (`progression.MaxWeightG`, which now holds the cap `workout` used before).
+- **Why (user decision, Day 5):** The program uses ascending weights per set, so the spec's single
+  `weight` can't describe most sessions. Carrying a spoken weight forward matches how people talk.
+  Falling back to the plan means "12 10 8" alone logs the prescribed session. The confirm screen
+  shows every set's weight, and the user can edit any of them before saving, so a wrong guess is
+  never saved silently.
+
+### D32. What voice data is kept or sent out?
+- **Choice:** Nothing new is stored: no transcript, parse or audio table. Audio never leaves the
+  browser (Web Speech API). The LLM receives only the transcript and today's exercises (id, name,
+  aliases), never a user id, email or name.
+- **Why:** With nothing stored, account deletion and export (D29, D30) need no changes. The eval set
+  (Day 5, C5) is a reviewed file in the repo, not harvested user speech.
