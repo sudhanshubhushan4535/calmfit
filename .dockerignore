@@ -1,0 +1,12 @@
+# Only what the images need goes into the build context. Secrets never do.
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!migrations/
+!seed/
+!config/
+# Tests and test-only data stay out of the images' build context
+**/*_test.go
+**/*.test.cjs

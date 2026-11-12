@@ -1,0 +1,20 @@
+# Plain HTTP (NGINX_MODE=http): before the first certificate exists, and for a local smoke test.
+# The session cookie is Secure on any host except localhost, so sign-in only works over HTTPS in
+# production; switch to https.conf.template as soon as the certificate is issued (D-E).
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # Let's Encrypt HTTP-01 challenges (webroot)
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+
+    location / {
+        proxy_pass http://api:8080;
+        # The API decides the cookie's Secure flag from Host, so it must be the public host.
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+        client_max_body_size 64k;
+    }
+}

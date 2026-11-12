@@ -687,3 +687,86 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
   thing it describes committed. A Go test runs every query in the SQL file against a hand-built
   cohort with known answers, including boundary cases (exactly 48 h, exactly at `as_of`, a second
   workout 8 days later).
+
+### D49. How are the images built?
+- **Choice:** One `Dockerfile`. A single build stage runs on the build machine's own platform
+  (`--platform=$BUILDPLATFORM`) and cross-compiles static binaries (`CGO_ENABLED=0`,
+  `GOARCH=$TARGETARCH`, `-tags timetzdata`), so building arm64 needs no QEMU. Targets:
+  - `api` (with `migrate`, `seed`, `reminders`, `migrations/`, `seed/`, `config/`), `worker`,
+    `relay`: on `gcr.io/distroless/static-debian12:nonroot` (CA certs, no shell, non-root);
+  - `backup` (`cmd/backup` + `cmd/restore-test` on `postgres:16`, `PG_BIN` set), so nightly
+    backups run the same tested code as `make backup` (D43).
+  - `make images` builds every target for `linux/arm64` only, one target at a time, with Go
+    compiles capped at `-p 2`, and loads them locally as `calmfit/<target>:<git sha>`. Nothing is
+    pushed. `IMAGE_PLATFORMS=linux/amd64,linux/arm64` still works on a builder with more memory.
+  - **Why arm64 only (user decision, Day 7):** the first attempt built amd64 + arm64 at once with
+    unbounded parallelism. After 52 minutes it got every container in the Mac's 3.8 GB Docker VM
+    OOM-killed (exit 137) and crashed the Docker engine. The VM is arm64, and the Mac has 8 GB of
+    RAM, so Docker's memory can't be raised. `.dockerignore` is an allowlist, so `.env`,
+    backups and test files never enter the build context.
+- **Measured (Mac, arm64, Docker VM 3.8 GB, dev Postgres + Redis + Kafka running):** `make images`
+  took 1 min 53 s for all four targets. The Go compile of 8 binaries took 68.2 s at `-p 2`; only
+  the module download was cached from the failed first attempt. No container was OOM-killed.
+  Image sizes (`docker images`): api 126 MB, worker 38.5 MB, relay 24.1 MB, backup 684 MB
+  (`postgres:16` base).
+- **Why:** The VM is Ampere A1 (arm64) and the Mac builds natively for arm64 too. Static binaries
+  on distroless keep the images small. The zone database is embedded so Asia/Kolkata can't depend
+  on the base image.
+
+### D50. What does the production compose file decide?
+- **Choice:** `docker-compose.prod.yml`: nginx, api, worker-1, worker-2, relay, postgres, kafka
+  (heap 512 MB), redis, one-shot `migrate` → `seed` and `kafka-init` (topics) that the services
+  wait for, cron tools `reminders` and `backup` (profile `tools`), and Prometheus + Grafana
+  (profile `obs`, targets `api:9101`, `worker-1:9102`, `worker-2:9102`).
+  - **Ports:** only nginx publishes ports (80/443). Postgres and Grafana bind to `127.0.0.1`
+    (SSH tunnel; user decision Day 7). Prometheus has no host port.
+  - **Secrets:** each service gets only the variables it uses from `.env.prod`. For example, only
+    `reminders` sees the VAPID private key. `APP_ENV=production` is fixed in the file, so test
+    sign-in can't be turned on (D39).
+  - **Memory limits** (budgets, not measurements), long-running total 5,056 MiB of 12 GB. `make
+    prod-check` enforces a 6,144 MiB cap, a limit on every service, and no port beyond loopback
+    except nginx:
+
+    | Service | Limit | Notes |
+    | --- | --- | --- |
+    | Postgres | 2,048 MiB | shared_buffers 512 MB |
+    | Kafka | 1,280 MiB | the dev broker with the same 512 MB heap measured 700 MiB resident |
+    | Prometheus | 512 MiB | |
+    | API | 256 MiB | |
+    | Redis | 256 MiB | maxmemory 200 MB |
+    | Grafana | 256 MiB | |
+    | Workers ×2, relay | 128 MiB each | |
+    | nginx | 64 MiB | |
+
+    Go services get `GOMEMLIMIT` at about 80% of their limit. CPU limits are caps (Postgres 1.5,
+    API and Kafka 1.0, the rest 0.5).
+  - **nginx:** an HTTP template (ACME webroot + proxy) and an HTTPS template, switched by
+    `NGINX_MODE`. `Host` is passed through, so the session cookie is `Secure` on the real domain.
+  - **Nightly backup:** `scripts/backup-nightly.sh` from cron at 02:15 IST runs the `backup`
+    image into `BACKUP_DIR` and keeps 7 days. Older files are deleted only after a successful dump,
+    and never the newest.
+- **Why:** The spec's memory budget (Kafka ~1 GB, Postgres 1–2 GB, Redis ~200 MB, Go services
+  ~100 MB) plus headroom. Leaving about 7 GB to the OS page cache helps Postgres more than a
+  larger `shared_buffers` would. One-shot init services make a fresh VM come up with one command,
+  in the right order.
+- **Local smoke test (Mac, project `calmfit-smoke`, HTTP on :8088, images `c6`):**
+  - The whole stack started in 31 s, in order: migrate → seed → api, and kafka-init → relay +
+    workers. The two workers split the 3 partitions 2 + 1.
+  - Through nginx: `/`, `/app` (real `GOOGLE_CLIENT_ID` injected), `/sw.js`, the manifest, the
+    icons and the protein guide all return 200. API paths without a session return 401 with
+    `no-store`. `/metrics` returns 404 (it lives only on :9101).
+  - A `test:synthetic-…` credential returns 401. `api` with `TEST_AUTH=1` exits 1 with
+    "refusing to start: TEST_AUTH is set while APP_ENV=production".
+  - The Prometheus targets `api:9101`, `worker-1:9102` and `worker-2:9102` all serve metrics on
+    the compose network.
+  - `scripts/backup-nightly.sh` (with `ENV_FILE`/`COMPOSE_PROJECT` overrides) dumped the seeded
+    DB. Rotation removed only a dump older than 7 days. `restore-test` in the backup image
+    passed 17/17 tables. `reminders -dry-run` ran.
+  - Idle memory, about 2 min after start: Kafka 530 MiB, Postgres 86 MiB, Redis 11 MiB, nginx
+    7 MiB, api 7 MiB, workers 6 MiB each, relay 3 MiB, about 657 MiB in total, with every limit
+    enforced. The DB was empty, so these say nothing about load.
+  - **Not covered:** a real Google sign-in (needs the deployed HTTPS origin), HTTPS/certificates,
+    and the obs profile containers (configs checked by `prod-check`, not run).
+- **Open for deploy (part B):** certificate method and domain (D-E), off-VM backup copies, how
+  images reach the VM (build on the VM vs `docker save | ssh docker load` vs a registry), and the
+  alert channel (D38).

@@ -33,6 +33,8 @@ and for a small gym pilot.
   (each starts its own relay + 2 workers; `drill-replay` truncates derived tables for all users)
 - `reminders`: send today's Web Push reminders once (`ARGS=-dry-run`, `ARGS="-user <uuid>"`); `vapid-keys` prints a key pair for `.env` (D47)
 - `backup` / `restore-test`: pg_dump into ./backups with a row-count manifest; restore into a fresh DB and compare (D43, README)
+- `images`: build api/worker/relay/backup for linux/arm64 (`-p 2`), load locally as `calmfit/<target>:<sha>` (D49; never pushes)
+- `prod-check`: validate `docker-compose.prod.yml` (memory limits, budget, only nginx public) (D50)
 - `test-db`: create, migrate and seed `calmfit_test`
 - `test`: `go test ./...` with `.env` exported, then `node --test` for the share-card JS
 

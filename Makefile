@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: reminders vapid-keys backup restore-test drill-worker-kill drill-redis drill-duplicate drill-malformed drill-replay bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
+.PHONY: images prod-check reminders vapid-keys backup restore-test drill-worker-kill drill-redis drill-duplicate drill-malformed drill-replay bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -136,3 +136,20 @@ backup:
 # every table's row count with the manifest; PASS drops it, FAIL keeps it.
 restore-test:
 	go run ./cmd/restore-test $(if $(FILE),-file $(FILE))
+
+# ---- Deploy prep (D49, D50). Nothing here pushes or deploys. ----
+# Builds every image for linux/arm64 (the VM is Ampere A1) and loads it into the local image store
+# as calmfit/<target>:$(IMAGE_TAG). arm64 only, one target at a time, Go compiles capped at -p 2:
+# the Mac's Docker VM has 3.8 GB (D49). IMAGE_PLATFORMS=linux/amd64,linux/arm64 works on a bigger builder.
+IMAGE_TAG ?= $(shell git rev-parse --short HEAD)
+IMAGE_PLATFORMS ?= linux/arm64
+images:
+	@for t in api worker relay backup; do \
+		echo "== $$t"; \
+		docker buildx build --platform $(IMAGE_PLATFORMS) --target $$t -t calmfit/$$t:$(IMAGE_TAG) --load . || exit 1; \
+	done
+
+# Validates docker-compose.prod.yml with dummy values and checks every service's memory limit
+# against the 12 GB VM budget.
+prod-check:
+	scripts/prod-check.sh
