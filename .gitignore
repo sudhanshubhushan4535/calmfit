@@ -6,3 +6,9 @@
 /bench-results
 /drill-out
 /backups
+# Production secrets and certificates (D50); .env.prod.example is the committed template
+.env.prod
+/deploy/certbot/conf/*
+/deploy/certbot/www/*
+!/deploy/certbot/conf/.gitkeep
+!/deploy/certbot/www/.gitkeep
