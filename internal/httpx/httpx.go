@@ -11,6 +11,8 @@ import (
 // WriteJSON writes v as JSON with the given status.
 func WriteJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
+	// API responses are per user and must never be stored by a browser or proxy cache (D44).
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }

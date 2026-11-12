@@ -573,3 +573,24 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
   - backup: 2.8 GB database → 130 MB dump in 30.5 s;
   - restore: 70.1 s;
   - check: 14/14 tables, 9,933,365 rows → PASS.
+
+## Day 7
+
+### D44. What does the service worker cache?
+- **Choice:** The app shell only: `/app`, the manifest, `/static/pwa.js` and the four icons
+  (`web.ShellPaths`). The worker answers only same-origin GETs on those exact paths. Pages are
+  network-first (the cached copy is the offline fallback); the other shell files are cache-first.
+  Every other request, including every API call and every POST, gets no `respondWith`, so it goes
+  to the network as if there were no worker.
+  - The cache name carries a hash of every embedded shell source plus the client ID. Any change
+    gives a new cache, and old ones are deleted on activate. `/sw.js` and the manifest are served
+    `no-cache`, so a deploy reaches phones on their next visit.
+  - Defense in depth: every JSON response now carries `Cache-Control: no-store`.
+  - The test page moved from `/` to `/app` (the manifest's `start_url` and `id`); `/` belongs to
+    the landing page. Scope is `/`.
+- **Why:** The spec requires "every set saved immediately; refresh never loses data". Sets are
+  saved by `POST /workouts/{id}/sets` the moment they are logged, and a cached API response could
+  only ever show stale data, never save any. Offline sync is out of v1. Tests check that every
+  shell path is public and not JSON, and that the API paths are not in the shell and are `no-store`.
+- **Not pilot-ready:** `/app` is still the manual-test page (D-A, Day 7). The PWA only makes it
+  installable; a pilot-ready UI is separate work.

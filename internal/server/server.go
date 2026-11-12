@@ -47,7 +47,11 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string, cfg config.Config, 
 	(&plate.Handler{DB: db, Cfg: cfg}).Register(mux, a.RequireUser)
 	(&exercise.Handler{DB: db}).Register(mux, a.RequireUser)
 	(&account.Handler{DB: db}).Register(mux, a.RequireUser)
-	mux.HandleFunc("GET /{$}", web.Index(clientID))
+	// The landing page replaces this redirect (Day 7, C2). The app lives at /app.
+	mux.Handle("GET /{$}", http.RedirectHandler("/app", http.StatusFound))
+	mux.HandleFunc("GET /app", web.Index(clientID))
+	mux.HandleFunc("GET /manifest.webmanifest", web.Manifest)
+	mux.HandleFunc("GET /sw.js", web.ServiceWorker(clientID))
 	mux.HandleFunc("GET /guide/protein", web.ProteinGuide)
 	mux.Handle("GET /static/", web.Static())
 	return mux

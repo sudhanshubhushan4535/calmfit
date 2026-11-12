@@ -15,7 +15,7 @@ import (
 // html/template escapes contextually at execution time, so a script it can't parse only fails when served.
 func TestIndexRenders(t *testing.T) {
 	rec := httptest.NewRecorder()
-	Index("client-123")(rec, httptest.NewRequest("GET", "/", nil))
+	Index("client-123")(rec, httptest.NewRequest("GET", "/app", nil))
 	body := rec.Body.String()
 	if rec.Code != 200 || !strings.Contains(body, `data-client_id="client-123"`) || !strings.Contains(body, "/workouts/start") ||
 		!strings.Contains(body, "/progress/weekly") || !strings.Contains(body, "/voice/parse") || !strings.Contains(body, "stt.jsonl") || strings.Contains(body, "<script src=\"https://cdn") ||
