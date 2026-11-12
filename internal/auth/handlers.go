@@ -95,10 +95,6 @@ func (h *Handler) googleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uid, err := upsertUser(r.Context(), h.DB, id)
-	if errors.Is(err, ErrUserDeleted) {
-		httpx.WriteError(w, http.StatusForbidden, "account deleted")
-		return
-	}
 	if err != nil {
 		httpx.InternalError(w, "auth: upsert user", err)
 		return
@@ -146,7 +142,7 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.SetCookie(w, sessionCookie(r, "", -1))
+	ClearSessionCookie(w, r)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -162,6 +158,11 @@ func cookieHash(r *http.Request) ([]byte, bool) {
 	}
 	sum := sha256.Sum256(raw)
 	return sum[:], true
+}
+
+// ClearSessionCookie tells the browser to drop the session cookie (logout, account deletion).
+func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, sessionCookie(r, "", -1))
 }
 
 func sessionCookie(r *http.Request, value string, maxAge int) *http.Cookie {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/sudhanshubhushan4535/calmfit/internal/account"
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
 	"github.com/sudhanshubhushan4535/calmfit/internal/exercise"
@@ -24,6 +25,7 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string, cfg config.Config) 
 	(&workout.Handler{DB: db, Cfg: cfg}).Register(mux, a.RequireUser)
 	(&plate.Handler{DB: db, Cfg: cfg}).Register(mux, a.RequireUser)
 	(&exercise.Handler{DB: db}).Register(mux, a.RequireUser)
+	(&account.Handler{DB: db}).Register(mux, a.RequireUser)
 	mux.HandleFunc("GET /{$}", web.Index(clientID))
 	mux.HandleFunc("GET /guide/protein", web.ProteinGuide)
 	mux.Handle("GET /static/", web.Static())

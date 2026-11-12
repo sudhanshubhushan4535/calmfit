@@ -264,9 +264,12 @@ func TestDeletedAndUnknownUsersAreSkipped(t *testing.T) {
 		INSERT INTO weekly_stats (user_id, week_start, workouts, sets, volume_g) VALUES ($1::uuid, '2026-11-09', 4, 12, 1)`, gone); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.db.Exec(ctx, `UPDATE users SET deleted_at = now() WHERE id = $1::uuid`, gone); err != nil {
+	// A tombstone as account deletion leaves it (D29); SubPrefix can't find it, so clean up by id.
+	if _, err := e.db.Exec(ctx, `
+		UPDATE users SET deleted_at = now(), google_sub = NULL, email = '', name = NULL WHERE id = $1::uuid`, gone); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _, _ = e.db.Exec(context.Background(), `DELETE FROM users WHERE id = $1::uuid`, gone) })
 
 	unknown := uuid()
 	late := workoutEvent(t, gone, at, 3)
@@ -355,5 +358,80 @@ func TestCompletedWorkoutReachesWeeklyStats(t *testing.T) {
 	s, rows := e.stats(t, uid)
 	if s != (stats{1, 2, 5000*12 + 7500*10}) || rows != 1 {
 		t.Fatalf("weekly_stats %+v in %d rows, want 1 workout, 2 sets, 135000 volume", s, rows)
+	}
+}
+
+// Account deletion end to end: stats exist → DELETE /me removes them in the same transaction →
+// the user.deleted event is published and applied → a stale workout.logged for the deleted user
+// (e.g. a late redelivery or a full replay) is skipped, and nothing is rebuilt.
+func TestAccountDeletionEndToEnd(t *testing.T) {
+	e := setup(t)
+	fv := testutil.NewFakeVerifier()
+	srv := httptest.NewServer(server.New(e.db, fv, "test-client-id", e.cfg))
+	t.Cleanup(srv.Close)
+	c := testutil.Login(t, srv.URL, fv, e.sub+"bye")
+	var uid string
+	if err := e.db.QueryRow(context.Background(), `SELECT id::text FROM users WHERE google_sub = $1`, e.sub+"bye").Scan(&uid); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { // the tombstone has no google_sub, so SubPrefix can't clean it up
+		_, _ = e.db.Exec(context.Background(), `DELETE FROM outbox WHERE user_id = $1::uuid`, uid)
+		_, _ = e.db.Exec(context.Background(), `DELETE FROM users WHERE id = $1::uuid`, uid)
+	})
+
+	testutil.Do(t, c, "POST", srv.URL+"/onboarding", `{"days_per_week":3}`)
+	var w struct{ ID string }
+	_ = json.Unmarshal(testutil.Do(t, c, "POST", srv.URL+"/workouts/start", ""), &w)
+	testutil.Do(t, c, "POST", srv.URL+"/workouts/"+w.ID+"/exercises/Side_Lateral_Raise/cold-start", `{"usual_kg":5}`)
+	testutil.Do(t, c, "POST", srv.URL+"/workouts/"+w.ID+"/sets", `{"exercise_id":"Side_Lateral_Raise","set_number":1,"weight_g":5000,"reps":12}`)
+	testutil.Do(t, c, "POST", srv.URL+"/workouts/"+w.ID+"/complete", "")
+
+	prod, err := outbox.NewProducer(e.k.Brokers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer prod.Close()
+	relay := &outbox.Relay{DB: e.db, Client: prod, Topic: e.k.Topic}
+	publish := func() {
+		for {
+			var left int
+			if err := e.db.QueryRow(context.Background(),
+				`SELECT count(*) FROM outbox WHERE user_id = $1::uuid AND published_at IS NULL`, uid).Scan(&left); err != nil {
+				t.Fatal(err)
+			}
+			if left == 0 {
+				return
+			}
+			if _, err := relay.PublishBatch(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	publish()
+	stop, _, _ := e.startWorker(t, nil)
+	e.waitCommitted(t)
+	if s, _ := e.stats(t, uid); s.workouts != 1 {
+		t.Fatalf("before delete: %+v", s)
+	}
+
+	testutil.Do(t, c, "DELETE", srv.URL+"/me", "")
+	if _, rows := e.stats(t, uid); rows != 0 {
+		t.Fatal("deletion left weekly_stats rows")
+	}
+	publish() // user.deleted
+	stale := workoutEvent(t, uid, time.Now(), 3)
+	e.produce(t, uid, stale)
+	e.waitCommitted(t)
+	if err := stop(); err != nil {
+		t.Fatalf("worker failed on a deleted user's events: %v", err)
+	}
+	if _, rows := e.stats(t, uid); rows != 0 {
+		t.Fatal("a stale event rebuilt stats for a deleted user")
+	}
+	if !e.processed(t, stale) {
+		t.Fatal("the stale event was not recorded as processed")
+	}
+	if dlq := testutil.ReadAll(t, e.k.Brokers, e.k.DLQ); len(dlq) != 0 {
+		t.Fatalf("deleted user's events went to the DLQ: %d records", len(dlq))
 	}
 }

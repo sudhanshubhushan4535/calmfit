@@ -2,14 +2,9 @@ package auth
 
 import (
 	"context"
-	"errors"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// ErrUserDeleted means the Google account maps to a soft-deleted user.
-var ErrUserDeleted = errors.New("user is deleted")
 
 // User is the public shape returned by /me and /auth/google.
 type User struct {
@@ -19,19 +14,15 @@ type User struct {
 }
 
 // upsertUser creates or refreshes the user for this Google sub and returns its id.
-// The WHERE on DO UPDATE never writes email/name back into a soft-deleted (anonymised) row;
-// in that case RETURNING yields no row, which we report as ErrUserDeleted.
+// A deleted account's tombstone has google_sub NULL (users_tombstone_check), so it can never match:
+// signing in again with that Google account creates a new user.
 func upsertUser(ctx context.Context, db *pgxpool.Pool, id Identity) (string, error) {
 	var uid string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (google_sub, email, name) VALUES ($1, $2, $3)
 		ON CONFLICT (google_sub) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name
-		WHERE users.deleted_at IS NULL
 		RETURNING id::text`,
 		id.Sub, id.Email, nullIfEmpty(id.Name)).Scan(&uid)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrUserDeleted
-	}
 	return uid, err
 }
 

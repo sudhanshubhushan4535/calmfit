@@ -237,3 +237,44 @@ than just missing):
 tables (workouts, sets, plate checks) are never touched. Deleted users' events are skipped again
 (D25), so their data is never rebuilt. The rebuild drill ("stats match after rebuild") is part of
 Day 6's failure drills.
+
+### D29. What does account deletion do?
+- **Choice:** `DELETE /me` (session user only) in **one transaction**:
+  1. Lock the user row `FOR UPDATE`.
+  2. Delete all sessions, which signs the user out on every device.
+  3. Hard-delete `user_programs`, `workouts` (cascading to exercises and sets), `plate_checks`,
+     `weekly_stats` and the user's outbox rows, published or not.
+  4. Turn the users row into a tombstone: `deleted_at = now()`, `google_sub = NULL`, `email = ''`,
+     `name = NULL`.
+  5. Enqueue `user.deleted`, which is then the user's only outbox row.
+
+  The response is 204 and clears the cookie. Migration 00014 adds
+  `CHECK ((deleted_at IS NULL) = (google_sub IS NOT NULL))`, so a tombstone can never match a
+  login. **The same Google account can sign up again as a brand-new user** with a new id and no
+  old data. The Day 1 "account deleted" 403 branch and `ErrUserDeleted` are gone.
+- **Why (user decision, Day 4):** The spec says "soft-delete + anonymise". We keep only a
+  tombstone, which has no personal data. It means foreign keys never dangle, and the worker can
+  tell "deleted" from "unknown" (D25). The training rows are deleted, not kept under a
+  pseudonymous id, because an erasure request should erase. Taking the row lock serialises
+  deletion with the worker, so a late event can't recreate stats.
+- **Limits:** The deleted user's already-published events stay in Kafka (D21). The down migration
+  for 00014 fails once any tombstone exists, because the original sub is gone by design.
+
+### D30. What does the export contain?
+- **Choice:** `GET /me/export` returns one JSON document as an attachment (`Cache-Control:
+  no-store`), read in one REPEATABLE READ, read-only transaction so all sections are from the same
+  moment. Sections:
+  - `user` (id, email, name, created_at);
+  - `program`;
+  - `workouts`, each with its exercises, their plan snapshots and their sets;
+  - `plate_checks`;
+  - `weekly_stats`;
+  - `sessions`: created and expiry times only.
+
+  The session token hash is **never** exported. Every table is listed in exactly one of
+  `account.ExportedTables`, `InternalTables` (outbox, processed_events, goose_db_version) or
+  `ReferenceTables` (exercises, templates). A test fails if a new table is in none of them, or if
+  an exported table isn't checked by the deletion test.
+- **Why:** The outbox duplicates data that is already exported, and processed_events holds only
+  event ids. Reference data isn't the user's. Building the JSON in SQL keeps the export to one
+  query per section.

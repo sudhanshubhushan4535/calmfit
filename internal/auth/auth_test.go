@@ -251,41 +251,6 @@ func TestLogoutInvalidatesSession(t *testing.T) {
 	wantStatus(t, e.do(t, &http.Client{}, "POST", "/auth/logout", old), http.StatusNoContent)
 }
 
-func TestDeletedUserCannotSignInAndRowIsUntouched(t *testing.T) {
-	e := setup(t)
-	id := e.identity("del")
-	e.fv.set("tok-del", id)
-	wantStatus(t, e.login(t, newClient(t), "tok-del"), http.StatusOK)
-
-	// Simulate account deletion: anonymise, soft-delete, revoke sessions.
-	ctx := context.Background()
-	if _, err := e.db.Exec(ctx, `UPDATE users SET deleted_at = now(), email = 'anon', name = 'anon' WHERE google_sub = $1`, id.Sub); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.db.Exec(ctx, `DELETE FROM sessions s USING users u WHERE s.user_id = u.id AND u.google_sub = $1`, id.Sub); err != nil {
-		t.Fatal(err)
-	}
-
-	id.Email, id.Name = "del-again@example.com", "Back Again"
-	e.fv.set("tok-del2", id)
-	resp := e.login(t, newClient(t), "tok-del2")
-	wantStatus(t, resp, http.StatusForbidden)
-	if c := sessionCookie(t, resp); c != nil {
-		t.Fatalf("deleted user got a session cookie: %v", c)
-	}
-
-	var email, name string
-	var sessions int
-	if err := e.db.QueryRow(ctx, `
-		SELECT u.email, u.name, (SELECT count(*) FROM sessions s WHERE s.user_id = u.id)
-		FROM users u WHERE u.google_sub = $1`, id.Sub).Scan(&email, &name, &sessions); err != nil {
-		t.Fatal(err)
-	}
-	if email != "anon" || name != "anon" || sessions != 0 {
-		t.Fatalf("deleted row changed: email=%q name=%q sessions=%d", email, name, sessions)
-	}
-}
-
 func TestOnlyTokenHashIsStoredAndCookieFlags(t *testing.T) {
 	e := setup(t)
 	id := e.identity("hash")
