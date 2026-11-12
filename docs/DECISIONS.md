@@ -603,3 +603,20 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
   `/` joins the precached shell. Rendered size: 5,310 bytes (a test caps it at 16 KB).
 - **Why:** The spec's design lives on "the CalmFit canvas", which isn't in the repo. Writing only
   the spec's own words avoids claims nobody measured (no user counts, no testimonials).
+
+### D46. How is the weekly share card made?
+- **Choice:** In the browser: `static/sharecard.js` turns `GET /review/weekly` into a model and
+  paints a 1080×1920 `<canvas>`. `toBlob` gives a PNG. **Share** uses `navigator.share({files})`
+  and appears only when `navigator.canShare` accepts the file. **Download** is always there
+  (`<a download>`). Nothing is uploaded and there's no new endpoint.
+  - Content: workouts done/planned; plate score = good plate days of the *logged* days (D16; a
+    dash when none were logged, never 0); "strength gained" = the lifts that went up (D14). Up to
+    3 lifts are listed, sorted by weight gained, then reps, then name, plus "+N more". A week with
+    none says "Building strength", with no guilt line.
+  - All text sits between y=250 and y=1670, outside what Instagram covers with its own story UI.
+    Long names shrink, then get an ellipsis.
+  - Tests: `node --test` (run by `make test`) checks the model and that every drawn text stays
+    inside the card and the safe zone, using a fake 2D context.
+- **Why:** This is the simplest approach. A Go renderer would need embedded fonts and text layout
+  for one image a week. The browser already has both, and the review endpoint already has the
+  data. The spec's cut order lists the share card first, so it got the cheapest design.

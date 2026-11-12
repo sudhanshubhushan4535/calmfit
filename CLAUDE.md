@@ -33,7 +33,7 @@ and for a small gym pilot.
   (each starts its own relay + 2 workers; `drill-replay` truncates derived tables for all users)
 - `backup` / `restore-test`: pg_dump into ./backups with a row-count manifest; restore into a fresh DB and compare (D43, README)
 - `test-db`: create, migrate and seed `calmfit_test`
-- `test`: `go test ./...` with `.env` exported
+- `test`: `go test ./...` with `.env` exported, then `node --test` for the share-card JS
 
 ## Tests
 - DB tests use `calmfit_test` via `testutil.DB(t)`. If `TEST_DATABASE_URL` is unset they **fail,

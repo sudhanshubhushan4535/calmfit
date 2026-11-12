@@ -115,6 +115,7 @@ var ShellPaths = []string{
 	"/app",
 	"/manifest.webmanifest",
 	"/static/pwa.js",
+	"/static/sharecard.js",
 	"/static/icons/icon-192.png",
 	"/static/icons/icon-512.png",
 	"/static/icons/maskable-512.png",

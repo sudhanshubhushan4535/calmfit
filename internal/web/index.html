@@ -96,7 +96,18 @@
   <div id="charts"></div>
   <p id="perr" class="err"></p>
 
+  <h2>Weekly share card</h2>
+  <p class="muted">An Instagram-story image (1080×1920) of this week's review, drawn in the browser. Nothing is uploaded.</p>
+  <div class="row">
+    <button id="cardmake" type="button">Make this week's card</button>
+    <button id="cardshare" type="button" hidden>Share</button>
+    <a id="carddl" hidden>Download</a>
+  </div>
+  <canvas id="card" width="1080" height="1920" hidden style="width:270px;height:480px;border:1px solid #e4e4e7;border-radius:8px"></canvas>
+  <p id="carderr" class="err"></p>
+
   <script src="/static/pwa.js" defer></script>
+  <script src="/static/sharecard.js"></script>
   <script src="https://accounts.google.com/gsi/client" async></script>
   <script>
     const out = document.getElementById('out');
@@ -462,6 +473,32 @@
       lineChart(await api('GET', '/progress/' + encodeURIComponent(document.getElementById('pex').value.trim())))));
     document.getElementById('wload').addEventListener('click', () => chartRun(async () =>
       barChart((await api('GET', '/progress/weekly?weeks=8')).weeks)));
+
+    // ---- Weekly share card (D46): canvas → PNG; Web Share with files where supported, else download ----
+    const cardCanvas = document.getElementById('card'), cardShare = document.getElementById('cardshare');
+    const cardDl = document.getElementById('carddl'), cardErr = document.getElementById('carderr');
+    let cardFile = null;
+    document.getElementById('cardmake').addEventListener('click', async () => {
+      cardErr.textContent = '';
+      try {
+        const rv = await api('GET', '/review/weekly');
+        CalmFitCard.drawCard(cardCanvas.getContext('2d'), CalmFitCard.cardModel(rv));
+        cardCanvas.hidden = false;
+        const blob = await new Promise(res => cardCanvas.toBlob(res, 'image/png'));
+        const name = `calmfit-week-${rv.week_start}.png`;
+        cardFile = new File([blob], name, { type: 'image/png' });
+        if (cardDl.href) URL.revokeObjectURL(cardDl.href);
+        cardDl.href = URL.createObjectURL(blob);
+        cardDl.download = name;
+        cardDl.hidden = false;
+        // The file is ready before the tap, so share() runs inside the click's user activation.
+        cardShare.hidden = !(navigator.canShare && navigator.canShare({ files: [cardFile] }));
+      } catch (e) { cardErr.textContent = e.message; }
+    });
+    cardShare.addEventListener('click', async () => {
+      try { await navigator.share({ files: [cardFile], title: 'My CalmFit week' }); }
+      catch (e) { if (e.name !== 'AbortError') cardErr.textContent = 'share: ' + e.message; }
+    });
 
     document.getElementById('start').addEventListener('click', () => run(async () => {
       wo = await api('POST', '/workouts/start');
