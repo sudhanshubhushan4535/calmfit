@@ -31,6 +31,7 @@ and for a small gym pilot.
 - `bench` / `bench-<name>`: k6 benchmarks (docs/BENCHMARKS.md); `explain`: query plans for the heaviest synthetic user
 - `drill-worker-kill` / `drill-redis` / `drill-duplicate` / `drill-malformed` / `drill-replay`: docs/DRILLS.md
   (each starts its own relay + 2 workers; `drill-replay` truncates derived tables for all users)
+- `backup` / `restore-test`: pg_dump into ./backups with a row-count manifest; restore into a fresh DB and compare (D43, README)
 - `test-db`: create, migrate and seed `calmfit_test`
 - `test`: `go test ./...` with `.env` exported
 

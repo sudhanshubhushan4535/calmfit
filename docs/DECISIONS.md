@@ -554,3 +554,22 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
 - **Why:** The spec says load tests and drills never call the real API. A fake-parser switch in
   `cmd/api` would be one more thing that must never be on in production. The drill still
   exercises the same handler, limiter and Redis client code as production.
+
+### D43. Which pg_dump/pg_restore do backups use?
+- **Choice:** The `postgres:16` Docker image by default, run as a throwaway container on the host
+  network (`docker run --rm -i --network host postgres:16 pg_dump …`). The dump streams to stdout
+  into `backups/`, and the restore streams from stdin. `PG_BIN` switches to local binaries and
+  `PG_IMAGE` to another image.
+  - **Snapshot:** `make backup` dumps with `--snapshot` from a REPEATABLE READ transaction that
+    also counts every table, so the manifest matches the dump exactly.
+  - **Restore check:** `make restore-test` restores into a fresh `calmfit_restore_check`,
+    compares every table's count, and drops it on PASS.
+- **Why (user decision, Day 6):** The client then matches the server's major version (16) on the
+  Mac and on the VM. The Mac has pg_dump 18 installed. A newer pg_dump is supported against an
+  older server, but an archive from it isn't guaranteed to restore into 16 with `--exit-on-error`.
+  Host networking means the same `DATABASE_URL` works for the host tools and the container, with
+  no URL rewriting.
+- **Measured (local Mac):**
+  - backup: 2.8 GB database → 130 MB dump in 30.5 s;
+  - restore: 70.1 s;
+  - check: 14/14 tables, 9,933,365 rows → PASS.

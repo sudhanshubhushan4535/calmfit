@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: drill-worker-kill drill-redis drill-duplicate drill-malformed drill-replay bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
+.PHONY: backup restore-test drill-worker-kill drill-redis drill-duplicate drill-malformed drill-replay bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -114,3 +114,14 @@ drill-malformed:
 # TRUNCATEs weekly_stats + processed_events for every user and rebuilds them from Kafka (D28)
 drill-replay:
 	scripts/drills/replay.sh
+
+# Backups (README "Backups and restore", D43): pg_dump -Fc into ./backups (gitignored) with a
+# row-count manifest from the same snapshot. Client tools come from the postgres:16 image unless
+# PG_BIN points at local ones. Nightly scheduling is set up on the VM.
+backup:
+	go run ./cmd/backup
+
+# Restores the newest backup (or FILE=…) into a fresh calmfit_restore_check database and compares
+# every table's row count with the manifest; PASS drops it, FAIL keeps it.
+restore-test:
+	go run ./cmd/restore-test $(if $(FILE),-file $(FILE))
