@@ -38,10 +38,13 @@ type Voice struct {
 }
 
 // VoiceParse is the response of POST /workouts/{id}/voice/parse: sets to show on the confirm
-// screen. Nothing is saved; the client logs each confirmed set with POST /workouts/{id}/sets.
+// screen. Nothing is saved. On confirm the client, if UsualWeightG is set, first answers the
+// usual-weight question with set 1's weight (POST .../exercises/{exerciseID}/cold-start), then
+// logs each set with POST /workouts/{id}/sets: the same calls as tapping (D31, D35).
 type VoiceParse struct {
 	ExerciseID   string      `json:"exercise_id"`
 	ExerciseName string      `json:"exercise_name"`
+	UsualWeightG *int        `json:"usual_weight_g"`
 	Sets         []voice.Set `json:"sets"`
 	Warnings     []string    `json:"warnings"`
 }
@@ -106,7 +109,7 @@ func (h *Handler) voiceParse(w http.ResponseWriter, r *http.Request) {
 		var res voice.Result
 		if res, err = voice.Resolve(parsed, view, body.ExerciseID); err == nil {
 			httpx.WriteJSON(w, http.StatusOK, VoiceParse{ExerciseID: res.ExerciseID,
-				ExerciseName: infos[res.ExerciseID].Name, Sets: res.Sets, Warnings: res.Warnings})
+				ExerciseName: infos[res.ExerciseID].Name, UsualWeightG: res.UsualWeightG, Sets: res.Sets, Warnings: res.Warnings})
 			return
 		}
 	}

@@ -133,7 +133,11 @@ func TestResolveRejects(t *testing.T) {
 		{"exercise not in today's workout", Parsed{ExerciseID: "Barbell_Squat", Sets: []ParsedSet{{nil, 8}}}, "", CodeNotInWorkout},
 		{"hint not in today's workout", Parsed{Sets: []ParsedSet{{nil, 8}}}, "Barbell_Squat", CodeNotInWorkout},
 		{"another day's exercise named: the open one must not stand in", Parsed{OtherExercise: true, Sets: []ParsedSet{{w(60), 5}}}, "Incline_Dumbbell_Press", CodeNotInWorkout},
-		{"cold start not answered", Parsed{ExerciseID: "Butterfly", Unit: KG, Sets: []ParsedSet{{w(40), 12}}}, "", CodeNeedsUsualWeight},
+		{"usual weight needed, no weight said", Parsed{ExerciseID: "Butterfly", Sets: []ParsedSet{{nil, 12}, {nil, 10}}}, "", CodeNeedsUsualWeight},
+		{"usual weight needed, weight said only from set 2", Parsed{ExerciseID: "Butterfly", Unit: KG, Sets: []ParsedSet{{nil, 12}, {w(40), 10}}}, "", CodeNeedsUsualWeight},
+		{"usual weight needed via the open exercise, no weight", Parsed{Sets: []ParsedSet{{nil, 12}}}, "Butterfly", CodeNeedsUsualWeight},
+		{"usual weight needed, four sets", Parsed{ExerciseID: "Butterfly", Unit: KG, Sets: []ParsedSet{{w(40), 8}, {nil, 8}, {nil, 8}, {nil, 8}}}, "", CodeTooManySets},
+		{"usual weight needed, bad weight", Parsed{ExerciseID: "Butterfly", Unit: KG, Sets: []ParsedSet{{w(-40), 8}}}, "", CodeInvalidWeight},
 		{"no sets", Parsed{ExerciseID: inc}, "", CodeNoSets},
 		{"four sets", Parsed{ExerciseID: inc, Sets: []ParsedSet{{nil, 8}, {nil, 8}, {nil, 8}, {nil, 8}}}, "", CodeTooManySets},
 		{"more sets than left after logged ones", Parsed{ExerciseID: "Side_Lateral_Raise", Sets: []ParsedSet{{nil, 8}, {nil, 8}, {nil, 8}}}, "", CodeTooManySets},
@@ -161,6 +165,69 @@ func TestResolveRejects(t *testing.T) {
 }
 
 // A workout view missing targets is a server bug, not the user's fault.
+// An exercise waiting for its usual-weight answer: a weight said for set 1 becomes the proposed
+// usual weight and fills the sets (D31); nothing comes from a plan, because there is none.
+func TestResolveProposesUsualWeight(t *testing.T) {
+	first := "first time on this exercise: set 1's weight becomes your usual weight"
+	g := func(v int) *int { return &v }
+	tests := []struct {
+		name string
+		p    Parsed
+		hint string
+		want Result
+	}{
+		{
+			name: "one weight for every set",
+			p:    Parsed{ExerciseID: "Butterfly", Unit: KG, Sets: []ParsedSet{{w(40), 12}, {nil, 10}, {nil, 8}}},
+			want: Result{ExerciseID: "Butterfly", UsualWeightG: g(40000), Warnings: []string{first}, Sets: []Set{
+				{1, 40000, 12, SourceSaid}, {2, 40000, 10, SourceSaid}, {3, 40000, 8, SourceSaid},
+			}},
+		},
+		{
+			name: "ascending weights: the usual weight is set 1's",
+			p:    Parsed{ExerciseID: "Butterfly", Unit: KG, Sets: []ParsedSet{{w(40), 12}, {w(45), 10}}},
+			want: Result{ExerciseID: "Butterfly", UsualWeightG: g(40000), Warnings: []string{first}, Sets: []Set{
+				{1, 40000, 12, SourceSaid}, {2, 45000, 10, SourceSaid},
+			}},
+		},
+		{
+			name: "pounds, via the open exercise",
+			p:    Parsed{Unit: LB, Sets: []ParsedSet{{w(90), 12}}},
+			hint: "Butterfly",
+			want: Result{ExerciseID: "Butterfly", UsualWeightG: g(40800), Sets: []Set{{1, 40800, 12, SourceSaid}},
+				Warnings: []string{"exercise taken from the open screen", "converted from lb to kg (rounded to 0.1 kg)", first}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Resolve(tt.p, push, tt.hint)
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got  %+v\nwant %+v", got, tt.want)
+			}
+		})
+	}
+	// An exercise with a plan never proposes a usual weight.
+	got, err := Resolve(Parsed{ExerciseID: "Incline_Dumbbell_Press", Unit: KG, Sets: []ParsedSet{{w(20), 12}}}, push, "")
+	if err != nil || got.UsualWeightG != nil {
+		t.Errorf("planned exercise: UsualWeightG = %v, err %v; want nil", got.UsualWeightG, err)
+	}
+}
+
+// Sets logged on an exercise without a plan can't happen (logging needs a plan): a server bug.
+func TestResolveUsualWeightWithLoggedSetsIsInternal(t *testing.T) {
+	broken := []Exercise{{ID: "X", NeedsUsualWeight: true, Logged: 1}}
+	_, err := Resolve(Parsed{ExerciseID: "X", Unit: KG, Sets: []ParsedSet{{w(10), 8}}}, broken, "")
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	if _, ok := IsUserError(err); ok {
+		t.Errorf("want an internal error, got user error %v", err)
+	}
+}
+
 func TestResolveMissingTargetsIsInternal(t *testing.T) {
 	broken := []Exercise{{ID: "X", Remaining: targets(10000)}}
 	_, err := Resolve(Parsed{ExerciseID: "X", Sets: []ParsedSet{{nil, 8}, {nil, 8}}}, broken, "")

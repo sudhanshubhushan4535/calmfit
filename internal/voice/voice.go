@@ -113,9 +113,13 @@ type Set struct {
 
 // Result is a resolved parse.
 type Result struct {
-	ExerciseID string   `json:"exercise_id"`
-	Sets       []Set    `json:"sets"`
-	Warnings   []string `json:"warnings"`
+	ExerciseID string `json:"exercise_id"`
+	// UsualWeightG is set when the exercise still needs its usual-weight answer and the user said
+	// a weight for set 1 (D31): on confirm, the client first answers the usual-weight question with
+	// it (POST .../cold-start), then logs the sets. nil when no answer is needed.
+	UsualWeightG *int     `json:"usual_weight_g"`
+	Sets         []Set    `json:"sets"`
+	Warnings     []string `json:"warnings"`
 }
 
 // Resolve validates a parse against today's workout. hint is the exercise the user has open
@@ -124,6 +128,11 @@ type Result struct {
 // Sets are numbered from the first unlogged set. Weights follow D31: a set with no weight said
 // takes the last weight said before it in the same phrase ("bench 60, 8 8 7" logs all three at
 // 60); a set before any weight was said takes the plan's target for that set.
+//
+// An exercise still waiting for its usual-weight answer has no plan. If set 1's weight was said,
+// it becomes the proposed usual weight (Result.UsualWeightG) and the sets are filled from what was
+// said; with no weight for set 1 there is nothing to fill it from, so the answer is
+// needs_usual_weight.
 func Resolve(p Parsed, workout []Exercise, hint string) (Result, error) {
 	var res Result
 	res.Warnings = []string{}
@@ -144,18 +153,24 @@ func Resolve(p Parsed, workout []Exercise, hint string) (Result, error) {
 		return Result{}, &Error{CodeNotInWorkout, fmt.Sprintf("%q isn't in today's workout", id)}
 	}
 	res.ExerciseID = ex.ID
-	if ex.NeedsUsualWeight {
-		return Result{}, &Error{CodeNeedsUsualWeight, "answer the usual-weight question for this exercise first"}
-	}
 
 	if len(p.Sets) == 0 {
 		return Result{}, &Error{CodeNoSets, "no sets heard"}
+	}
+	if ex.NeedsUsualWeight {
+		if p.Sets[0].Weight == nil {
+			return Result{}, &Error{CodeNeedsUsualWeight, "say the weight for set 1, or answer the usual-weight question first"}
+		}
+		if ex.Logged != 0 {
+			// Set logging requires a plan, so an exercise without one can't have sets.
+			return Result{}, fmt.Errorf("voice: exercise %s has %d sets but no plan", ex.ID, ex.Logged)
+		}
 	}
 	left := progression.SetsPerExercise - ex.Logged
 	if len(p.Sets) > left {
 		return Result{}, &Error{CodeTooManySets, fmt.Sprintf("%d sets heard but only %d left to log", len(p.Sets), left)}
 	}
-	if len(ex.Remaining) < len(p.Sets) {
+	if !ex.NeedsUsualWeight && len(ex.Remaining) < len(p.Sets) {
 		return Result{}, fmt.Errorf("voice: exercise %s has %d remaining targets for %d sets", ex.ID, len(ex.Remaining), len(p.Sets))
 	}
 
@@ -191,6 +206,12 @@ func Resolve(p Parsed, workout []Exercise, hint string) (Result, error) {
 	}
 	if unit == LB && carried != nil {
 		res.Warnings = append(res.Warnings, "converted from lb to kg (rounded to 0.1 kg)")
+	}
+	if ex.NeedsUsualWeight {
+		// Set 1 always has a said weight here (checked above), so it is never a plan weight.
+		usual := res.Sets[0].WeightG
+		res.UsualWeightG = &usual
+		res.Warnings = append(res.Warnings, "first time on this exercise: set 1's weight becomes your usual weight")
 	}
 	return res, nil
 }

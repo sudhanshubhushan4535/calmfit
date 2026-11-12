@@ -28,6 +28,9 @@ func fakeParser() *voice.FakeParser {
 		"12 10 8":      {Sets: []voice.ParsedSet{{Reps: 12}, {Reps: 10}, {Reps: 8}}},
 		"squat 60, 5":  {ExerciseID: squat, Unit: voice.KG, Sets: []voice.ParsedSet{{Weight: kgp(60), Reps: 5}}},
 		"lateral 8, 9": {ExerciseID: lateral, Unit: voice.KG, Sets: []voice.ParsedSet{{Weight: kgp(8), Reps: 9}}},
+		"lateral 8, 12 10 8": {ExerciseID: lateral, Unit: voice.KG,
+			Sets: []voice.ParsedSet{{Weight: kgp(8), Reps: 12}, {Reps: 10}, {Reps: 8}}},
+		"lateral 12 10": {ExerciseID: lateral, Sets: []voice.ParsedSet{{Reps: 12}, {Reps: 10}}},
 		// What the API parser returns for an exercise outside today's list (its enum can't name it).
 		"leg press 100, 10": {OtherExercise: true, Unit: voice.KG, Sets: []voice.ParsedSet{{Weight: kgp(100), Reps: 10}}},
 	}}
@@ -198,8 +201,8 @@ func TestVoiceParseResults(t *testing.T) {
 
 	for _, tc := range []struct{ transcript, hint, code string }{
 		{"hello there", "", voice.CodeCouldNotParse},
-		{"squat 60, 5", "", voice.CodeNotInWorkout}, // legs exercise on push day
-		{"lateral 8, 9", "", voice.CodeNeedsUsualWeight},
+		{"squat 60, 5", "", voice.CodeNotInWorkout},       // legs exercise on push day
+		{"lateral 12 10", "", voice.CodeNeedsUsualWeight}, // first time and no weight said
 		{"12 10 8", "", voice.CodeNoExercise},
 		{"leg press 100, 10", inclinePress, voice.CodeNotInWorkout}, // the open exercise must not stand in
 	} {
@@ -343,4 +346,81 @@ func TestVoiceRedisDownFailsClosed(t *testing.T) {
 	}
 	e.mustLogSet(t, c, w.ID, inclinePress, 1, ex.Plan.Sets[0].WeightG, 12)
 	e.mustComplete(t, c, w.ID)
+}
+
+// A first-time exercise with set 1's weight said: the parse proposes it as the usual weight and
+// writes nothing; confirming through the existing cold-start + set endpoints gives exactly what a
+// tapping user who answered the question with that weight gets: same stored plan, same event.
+func TestVoiceProposesUsualWeight(t *testing.T) {
+	e := setupVoice(t, fakeParser(), nil)
+	planOf := func(sub string) string {
+		t.Helper()
+		var plan string
+		if err := e.db.QueryRow(context.Background(), `
+			SELECT coalesce(we.plan::text, 'null') FROM workout_exercises we
+			JOIN workouts w ON w.id = we.workout_id JOIN users u ON u.id = w.user_id
+			WHERE u.google_sub = $1 AND we.exercise_id = $2`, sub, lateral).Scan(&plan); err != nil {
+			t.Fatal(err)
+		}
+		return plan
+	}
+	eventSets := func(sub string) []events.LoggedSet {
+		t.Helper()
+		var payload []byte
+		if err := e.db.QueryRow(context.Background(), `
+			SELECT o.payload FROM outbox o JOIN users u ON u.id = o.user_id
+			WHERE u.google_sub = $1 AND o.type = $2`, sub, events.TypeWorkoutLogged).Scan(&payload); err != nil {
+			t.Fatal(err)
+		}
+		return decode[events.WorkoutLogged](t, payload).Sets
+	}
+
+	vc, vsub := e.user(t, "vfirst"), e.prefix+"vfirst"
+	_, vw := e.start(t, vc)
+	before := e.snapshot(t, vsub)
+	p := e.mustVoiceParse(t, vc, vw.ID, "lateral 8, 12 10 8", "")
+	if p.UsualWeightG == nil || *p.UsualWeightG != 8000 || p.ExerciseID != lateral {
+		t.Fatalf("parse = %+v, want usual weight 8000 on %s", p, lateral)
+	}
+	wantSets := []voice.Set{{SetNumber: 1, WeightG: 8000, Reps: 12, WeightSource: "said"},
+		{SetNumber: 2, WeightG: 8000, Reps: 10, WeightSource: "said"},
+		{SetNumber: 3, WeightG: 8000, Reps: 8, WeightSource: "said"}}
+	if !reflect.DeepEqual(p.Sets, wantSets) {
+		t.Errorf("sets = %+v", p.Sets)
+	}
+	// Saved only on confirm: the parse left the question unanswered and wrote nothing.
+	if e.snapshot(t, vsub) != before || planOf(vsub) != "null" {
+		t.Fatal("parse answered the usual-weight question or wrote a row")
+	}
+
+	// Confirm, as the test page does: answer the question with set 1's weight, then log the sets.
+	e.mustColdStart(t, vc, vw.ID, lateral, fmt.Sprintf(`{"usual_kg":%g}`, float64(*p.UsualWeightG)/1000))
+	for _, s := range p.Sets {
+		e.mustLogSet(t, vc, vw.ID, p.ExerciseID, s.SetNumber, s.WeightG, s.Reps)
+	}
+	e.mustComplete(t, vc, vw.ID)
+
+	// Tap user: answers the question with 8 kg and taps the same sets.
+	tc, tsub := e.user(t, "tfirst"), e.prefix+"tfirst"
+	_, tw := e.start(t, tc)
+	e.mustColdStart(t, tc, tw.ID, lateral, `{"usual_kg":8}`)
+	for i, reps := range []int{12, 10, 8} {
+		e.mustLogSet(t, tc, tw.ID, lateral, i+1, 8000, reps)
+	}
+	e.mustComplete(t, tc, tw.ID)
+
+	if vp, tp := planOf(vsub), planOf(tsub); vp != tp {
+		t.Errorf("stored plans differ:\nvoice %s\ntap   %s", vp, tp)
+	}
+	if vs, ts := eventSets(vsub), eventSets(tsub); !reflect.DeepEqual(vs, ts) || len(vs) != 3 {
+		t.Errorf("event sets differ: voice %+v, tap %+v", vs, ts)
+	}
+
+	// Once answered, the exercise has a plan and no usual weight is proposed any more.
+	vc2 := e.user(t, "vsecond")
+	_, w2 := e.start(t, vc2)
+	e.mustColdStart(t, vc2, w2.ID, lateral, `{"usual_kg":8}`)
+	if p2 := e.mustVoiceParse(t, vc2, w2.ID, "lateral 8, 12 10 8", ""); p2.UsualWeightG != nil {
+		t.Errorf("usual weight proposed for a planned exercise: %+v", p2)
+	}
 }

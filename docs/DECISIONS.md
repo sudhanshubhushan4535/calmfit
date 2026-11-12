@@ -285,7 +285,8 @@ Day 6's failure drills.
 - **Choice:** The parser returns per-set `{weight | null, reps}`, an optional exercise and a unit.
   `voice.Resolve` (pure Go) then:
   1. **Exercise.** Uses the exercise that was said. If none was said, it uses the one open on screen
-     (with a warning). It must be in today's open workout, and its usual-weight question must be answered.
+     (with a warning). It must be in today's open workout. If its usual-weight question isn't
+     answered yet, see step 7.
   2. **Set numbers.** Sets are numbered from the first unlogged set, so "9 10" after set 1 is
      logged becomes sets 2 and 3. More sets than are left → `too_many_sets`.
   3. **Weights.** A set with no weight said takes the last weight said before it in the same phrase,
@@ -300,6 +301,19 @@ Day 6's failure drills.
      workout ("squat 60, 5" on push day), the parser sets `other_exercise` and Resolve rejects
      the parse with `exercise_not_in_workout`. The open exercise never stands in for it.
      Otherwise squat's numbers could be offered as incline-press sets.
+  7. **First time on an exercise** (UX fix after C5). If the usual-weight (cold-start) question
+     isn't answered yet:
+     - **Set 1's weight said** ("hammer curl 10, 12 10 8"): it becomes the proposed usual weight
+       (`usual_weight_g`), and the sets are filled from what was said, using the carry-forward rule.
+       There's no plan to fall back on.
+     - **Set 1's weight not said:** the answer stays `needs_usual_weight`. That includes "12, 40 for 10", where the weight starts at set 2.
+     - **Still read-only:** the parse saves nothing. On Confirm the client first calls the existing
+       `POST .../exercises/{id}/cold-start` with `usual_kg` = set 1's confirmed weight, then logs
+       the sets. If the user corrected set 1 on the confirm screen, the corrected value is used,
+       because it replaces what was misheard.
+     - **Same result as tapping:** a test checks that this stores the same plan and emits the same
+       `workout.logged` sets as a user who answered the question with that weight and tapped the
+       same sets.
 - **Why (user decision, Day 5):** The program uses ascending weights per set, so the spec's single
   `weight` can't describe most sessions. Carrying a spoken weight forward matches how people talk.
   Falling back to the plan means "12 10 8" alone logs the prescribed session. The confirm screen

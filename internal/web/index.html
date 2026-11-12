@@ -280,8 +280,10 @@
 
     // The editable confirm list. pending.saved counts sets already logged, so a retry after a failed
     // request continues where it stopped (each POST /sets is an idempotent upsert anyway).
+    // usual_weight_g set means a first-time exercise: Confirm first answers the usual-weight
+    // question with set 1's (possibly edited) weight, exactly like the cold-start buttons do.
     function showConfirm(p) {
-      const pending = { ...p, saved: 0, inputs: [] };
+      const pending = { ...p, saved: 0, inputs: [], usualDone: p.usual_weight_g == null };
       const rows = p.sets.map(s => {
         const w = el('input', { type: 'number', step: '0.5', min: '0.5', value: kg(s.weight_g), style: 'width:5rem', 'aria-label': `set ${s.set_number} kg` });
         const r = el('input', { type: 'number', step: '1', min: '1', max: '50', value: s.reps, style: 'width:4rem', 'aria-label': `set ${s.set_number} reps` });
@@ -291,6 +293,7 @@
       });
       vConfirm.replaceChildren(el('div', { class: 'card' },
         el('h3', {}, p.exercise_name),
+        ...(p.usual_weight_g == null ? [] : [el('div', {}, 'First time on this exercise: Confirm also saves set 1\'s weight as your usual weight.')]),
         ...p.warnings.map(w => el('div', { class: 'muted' }, '⚠ ' + w)),
         ...rows,
         el('div', { class: 'row' },
@@ -301,6 +304,11 @@
     async function confirmSets(pending) {
       if (!wo) throw new Error('start a workout first');
       let updated = null;
+      if (!pending.usualDone) {
+        updated = await api('POST', `/workouts/${wo.id}/exercises/${pending.exercise_id}/cold-start`,
+          { usual_kg: Number(pending.inputs[0].w.value) });
+        pending.usualDone = true;
+      }
       for (const s of pending.inputs.slice(pending.saved)) {
         updated = await api('POST', `/workouts/${wo.id}/sets`, {
           exercise_id: pending.exercise_id, set_number: s.set_number,
