@@ -361,3 +361,32 @@ Day 6's failure drills.
   day's allowance (about $0.006). The provider spending cap (D33) bounds the rest.
 - **Account deletion and export:** the key holds only a count and a pseudonymous user id, and
   expires by local midnight. `DELETE /me` doesn't touch Redis, and the export doesn't include it.
+
+### D35. The voice endpoint
+- **Choice:** `POST /workouts/{id}/voice/parse` takes `{transcript, exercise_id?}` and returns
+  `{exercise_id, exercise_name, sets[{set_number, weight_g, reps, weight_source}], warnings}`.
+  `exercise_id` is the exercise open on screen. It is used only when no exercise was said.
+  - **Request checks, in order:**
+    1. The route exists only when `voice.enabled` is true and the API was given a parser and a
+       limiter (`server.WithVoice`). Otherwise it's a 404.
+    2. Sign-in (401).
+    3. Body: the transcript must be 1–200 characters after trimming, and unknown fields are rejected (400).
+    4. The workout must belong to the user (another user's workout is the same 404 as a missing one).
+    5. The workout must be open (409 `workout_completed`).
+    6. Rate limit: 429 `voice_daily_limit`, or 503 `voice_unavailable` while Redis is down.
+    7. Then the parser and `Resolve`.
+
+    A request that fails one of steps 1–5 never reaches the limiter, so it doesn't use up the allowance.
+  - **Errors after the checks:** 422 `{error, message}` for parses the user can fix (codes in
+    `internal/voice`), 502 `voice_parser_unavailable` for a provider failure, and 500 for anything else.
+  - **Read-only:** the handler reads the workout with `loadWorkout` and never opens a write
+    transaction. The test page's Confirm sends each set to the existing `POST /workouts/{id}/sets`
+    (an idempotent upsert). If a request fails, a retry continues from the first set that wasn't saved.
+- **Why (user decision, Day 5):** A single write path means voice can't break set validation, the
+  "set n−1 first" rule, in-session adjustment or the `workout.logged` outbox event. Tests check that
+  a voice-confirmed workout emits the same event sets as a tapped one, and that parsing leaves every
+  user row (workouts, exercises, sets, outbox, program) byte-for-byte unchanged. The trade-off is
+  that a three-set confirm is three requests and not atomic. A partial save is visible and can be
+  retried, and nothing is lost.
+- **API startup:** with the flag on, `ANTHROPIC_API_KEY` and `REDIS_URL` are required. Redis isn't
+  pinged at startup, because the API runs without it and only voice fails closed.

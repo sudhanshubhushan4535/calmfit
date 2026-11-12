@@ -48,6 +48,8 @@ type Handler struct {
 	DB  *pgxpool.Pool
 	Cfg config.Config    // timezone for local dates and Mon–Sun weeks
 	Now func() time.Time // nil means time.Now
+	// Voice enables POST /workouts/{id}/voice/parse; nil means the route doesn't exist (404).
+	Voice *Voice
 }
 
 // Register adds the routes; every route is wrapped in requireUser.
@@ -62,6 +64,9 @@ func (h *Handler) Register(mux *http.ServeMux, requireUser func(http.Handler) ht
 	mux.Handle("GET /review/weekly", requireUser(http.HandlerFunc(h.weeklyReview)))
 	mux.Handle("GET /progress/weekly", requireUser(http.HandlerFunc(h.weeklyProgress)))
 	mux.Handle("GET /progress/{exerciseID}", requireUser(http.HandlerFunc(h.exerciseProgress)))
+	if h.Voice != nil {
+		mux.Handle("POST /workouts/{id}/voice/parse", requireUser(http.HandlerFunc(h.voiceParse)))
+	}
 }
 
 // LoggedSet is one logged working set.

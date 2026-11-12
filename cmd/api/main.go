@@ -16,7 +16,9 @@ import (
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
+	"github.com/sudhanshubhushan4535/calmfit/internal/ratelimit"
 	"github.com/sudhanshubhushan4535/calmfit/internal/server"
+	"github.com/sudhanshubhushan4535/calmfit/internal/voice"
 )
 
 const addr = ":8080"
@@ -45,11 +47,27 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// Fail at startup, not on the first voice request. The parser itself is wired in with the endpoint.
+	// Voice is optional. When it's on, a missing key or Redis URL fails here, not on the first request.
+	var opts []server.Option
 	if cfg.Voice.Enabled {
-		if _, err := requireEnv("ANTHROPIC_API_KEY"); err != nil {
+		key, err := requireEnv("ANTHROPIC_API_KEY")
+		if err != nil {
 			return fmt.Errorf("voice.enabled is true in %s: %w", cfgPath, err)
 		}
+		redisURL, err := requireEnv("REDIS_URL")
+		if err != nil {
+			return fmt.Errorf("voice.enabled is true in %s: %w", cfgPath, err)
+		}
+		rdb, err := ratelimit.NewClient(redisURL)
+		if err != nil {
+			return err
+		}
+		defer rdb.Close()
+		// No startup ping: the limiter fails closed (503) while Redis is down, and the rest of the API
+		// doesn't need Redis at all.
+		limiter := ratelimit.NewDaily(rdb, "voice", cfg.Voice.DailyLimit, cfg)
+		opts = append(opts, server.WithVoice(voice.NewAPIParser(key, cfg.Voice.Model), limiter))
+		log.Printf("voice logging on (%s, %d parses per user per day)", cfg.Voice.Model, cfg.Voice.DailyLimit)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -66,7 +84,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           server.New(pool, auth.GoogleVerifier{ClientID: clientID}, clientID, cfg),
+		Handler:           server.New(pool, auth.GoogleVerifier{ClientID: clientID}, clientID, cfg, opts...),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
