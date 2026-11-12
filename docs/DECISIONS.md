@@ -178,10 +178,9 @@ revisit any of them by changing the code, tests and this file together.
   commit, and rebalances. `weekly_stats` increments on purpose, so a missing dedupe would show up
   as double counting. `TestDuplicateDeliveryIsAppliedOnce` covers a duplicate record and a
   simulated crash-then-redelivery.
-- **On a transient error:** the worker commits the records before the failing one and stops, so
-  the failing record is redelivered after a restart. (Commit 3 adds bounded retries and the DLQ.)
-  Permanent errors (bad envelope, unknown type/version, invalid payload) are logged and skipped
-  for now; commit 3 sends them to the DLQ.
+- **Failures:** see D26 (bounded retries, then the DLQ).
+- **Shutdown:** on SIGTERM the record in flight finishes and the batch so far is committed, then
+  the worker leaves the group, so the other instance takes the partitions at once.
 
 ### D25. Events for deleted or unknown users
 - **Choice:** Before the handler runs, the worker reads the user with `FOR SHARE`. If the user is
@@ -191,3 +190,50 @@ revisit any of them by changing the code, tests and this file together.
   replay. The row lock serializes the event with account deletion (which locks the user `FOR
   UPDATE`): either the stats are written first and the deletion removes them, or the deletion
   wins and the event is skipped.
+
+### D26. What happens when an event keeps failing?
+- **Choice:**
+  - **Permanent errors** go to `workout-events-dlq` after 1 attempt. These are a bad envelope, an
+    unknown type or version, or an invalid payload.
+  - **Transient errors** (for example the DB) get **5 attempts** in place, with exponential backoff:
+    waits of 200/400/800/1600 ms with jitter in [d/2, d), about 3 s at most. Then the record goes
+    to the DLQ.
+  - The DLQ record keeps the original key, value and headers, and adds `error`, `attempts`,
+    `src-topic`, `src-partition`, `src-offset` and `failed-at`. The source offset is committed only
+    after the DLQ produce is acknowledged.
+  - **If the DLQ produce fails,** the worker commits nothing more and exits, so the record comes
+    again after a restart.
+  - A record that failed isn't written to `processed_events` (its transaction rolled back), so a
+    replay can still apply it.
+- **Why:** One poison message must not block its partition, and so every later event for that user.
+  Bounded in-place retries ride out a DB blip without retry topics, and a ~3 s stall per bad record
+  is fine at pilot volume. Retrying a permanent error is pointless.
+
+### D27. How is the DLQ replayed?
+- **Choice:**
+  - `make dlq-replay` (`cmd/dlq-replay`) reads the DLQ in group `calmfit-dlq-replay`. It reads only
+    up to the end offsets taken at start, so a record that fails again during the run isn't
+    replayed in a loop.
+  - Each record goes back to `workout-events` with its original key and value plus a
+    `replayed-from-dlq` header (`<dlq>/<partition>@<offset>`). Its DLQ offset is committed only
+    after the produce is acknowledged.
+  - `ARGS=-dry-run` lists the records with their headers and changes nothing. `ARGS="-max N"`
+    limits the run.
+  - The command line was chosen over a UI, as the spec says.
+- **Why:** Replay is a deliberate step after a fix, not automatic. At-least-once is safe because the
+  worker dedupes on `event_id`, so replaying the same record twice applies it once (tested).
+  A record that is still bad lands in the DLQ again, tagged as replayed.
+
+### D28. Full rebuild of derived data (procedure, no tooling)
+Use this after fixing a bug in derived logic, when the existing `weekly_stats` are wrong (rather
+than just missing):
+1. Stop both workers (Ctrl-C; they leave the group).
+2. In one transaction: `TRUNCATE weekly_stats, processed_events;`
+3. `docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group calmfit-stats --topic workout-events --reset-offsets --to-earliest --execute`
+4. Start the workers. They re-read the topic from offset 0. Infinite retention (D20) keeps the
+   whole history there.
+
+`processed_events` has to be cleared too, or every event would be skipped as a duplicate. Business
+tables (workouts, sets, plate checks) are never touched. Deleted users' events are skipped again
+(D25), so their data is never rebuilt. The rebuild drill ("stats match after rebuild") is part of
+Day 6's failure drills.

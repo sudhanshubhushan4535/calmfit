@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: db-up kafka-up topics migrate-up migrate-down migrate-status seed run relay worker test-db test
+.PHONY: db-up kafka-up topics migrate-up migrate-down migrate-status seed run relay worker dlq-replay test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -40,6 +40,10 @@ relay:
 # Builds weekly_stats from workout-events; run 2 (two terminals) to see the group share partitions
 worker:
 	go run ./cmd/worker
+
+# Re-publish DLQ records to workout-events after a fix. List first: make dlq-replay ARGS=-dry-run
+dlq-replay:
+	go run ./cmd/dlq-replay $(ARGS)
 
 # Create calmfit_test on the compose Postgres if missing, migrate it, and load the seed (idempotent)
 test-db:

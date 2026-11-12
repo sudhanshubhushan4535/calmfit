@@ -19,6 +19,7 @@ and for a small gym pilot.
 - `kafka-up` / `topics`: start the broker; create `workout-events` and `workout-events-dlq` (idempotent)
 - `relay`: publish outbox rows to Kafka (run exactly one)
 - `worker`: consume `workout-events` in group `calmfit-stats` into `weekly_stats` (run 2)
+- `dlq-replay`: re-publish DLQ records after a fix; `ARGS=-dry-run` lists them, `ARGS="-max N"` limits
 - `migrate-up` / `migrate-down` / `migrate-status`: goose against `DATABASE_URL`
 - `seed`: validate `seed/*.json`, upsert in one transaction (idempotent)
 - `run`: start the API on :8080

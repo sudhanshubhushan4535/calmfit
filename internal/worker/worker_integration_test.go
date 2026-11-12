@@ -91,7 +91,7 @@ func (e *env) produce(t *testing.T, uid string, values ...[]byte) {
 
 // startWorker runs a worker in the test group. done is closed when Run returns; stop cancels it,
 // closes the client (leaving the group) and returns Run's error. Both are safe to use together.
-func (e *env) startWorker(t *testing.T, hook func(*kgo.Record) error) (stop func() error, done <-chan struct{}, runErr *error) {
+func (e *env) startWorker(t *testing.T, opt func(*worker.Worker)) (stop func() error, done <-chan struct{}, runErr *error) {
 	t.Helper()
 	cl, err := worker.NewConsumer(e.k.Brokers, e.group, e.k.Topic)
 	if err != nil {
@@ -100,7 +100,10 @@ func (e *env) startWorker(t *testing.T, hook func(*kgo.Record) error) (stop func
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan struct{})
 	var rerr error
-	w := &worker.Worker{DB: e.db, Client: cl, Handlers: worker.DefaultHandlers(e.cfg), AfterDBCommit: hook}
+	w := &worker.Worker{DB: e.db, Client: cl, Handlers: worker.DefaultHandlers(e.cfg), DLQTopic: e.k.DLQ}
+	if opt != nil {
+		opt(w)
+	}
 	go func() { rerr = w.Run(ctx); close(ch) }()
 	var once sync.Once
 	stop = func() error {
@@ -115,8 +118,11 @@ func (e *env) startWorker(t *testing.T, hook func(*kgo.Record) error) (stop func
 	return stop, ch, &rerr
 }
 
-// waitCommitted waits until the group has committed every record currently in the topic.
-func (e *env) waitCommitted(t *testing.T) {
+// waitCommitted waits until the worker group has committed every record currently in the topic.
+func (e *env) waitCommitted(t *testing.T) { e.waitGroupCommitted(t, e.group, e.k.Topic) }
+
+// waitGroupCommitted waits until group has committed every record currently in topic.
+func (e *env) waitGroupCommitted(t *testing.T, group, topic string) {
 	t.Helper()
 	cl, err := kgo.NewClient(kgo.SeedBrokers(e.k.Brokers...))
 	if err != nil {
@@ -125,13 +131,13 @@ func (e *env) waitCommitted(t *testing.T) {
 	defer cl.Close()
 	adm := kadm.NewClient(cl)
 	ctx := context.Background()
-	ends, err := adm.ListEndOffsets(ctx, e.k.Topic)
+	ends, err := adm.ListEndOffsets(ctx, topic)
 	if err != nil {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(20 * time.Second)
 	for {
-		committed, err := adm.FetchOffsets(ctx, e.group)
+		committed, err := adm.FetchOffsets(ctx, group)
 		if err == nil {
 			behind := 0
 			ends.Each(func(o kadm.ListedOffset) {
@@ -147,7 +153,7 @@ func (e *env) waitCommitted(t *testing.T) {
 			}
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("group %s did not commit to the end of %s (last err %v)", e.group, e.k.Topic, err)
+			t.Fatalf("group %s did not commit to the end of %s (last err %v)", group, topic, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -205,7 +211,9 @@ func TestDuplicateDeliveryIsAppliedOnce(t *testing.T) {
 	second := workoutEvent(t, uid, at.Add(time.Hour), 2)
 	e.produce(t, uid, second)
 	crash := errors.New("simulated crash before offset commit")
-	stop, done, runErr := e.startWorker(t, func(*kgo.Record) error { return crash })
+	stop, done, runErr := e.startWorker(t, func(w *worker.Worker) {
+		w.AfterDBCommit = func(*kgo.Record) error { return crash }
+	})
 	select {
 	case <-done:
 		if !errors.Is(*runErr, crash) {

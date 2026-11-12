@@ -59,7 +59,8 @@ func run() error {
 	defer client.Close()
 
 	log.Printf("worker: consuming %s in group %s (pid %d)", events.Topic, worker.Group, os.Getpid())
-	err = (&worker.Worker{DB: pool, Client: client, Handlers: worker.DefaultHandlers(cfg)}).Run(ctx)
+	err = (&worker.Worker{DB: pool, Client: client, Handlers: worker.DefaultHandlers(cfg),
+		DLQTopic: events.DLQTopic}).Run(ctx)
 	log.Println("worker: stopped")
 	return err
 }
