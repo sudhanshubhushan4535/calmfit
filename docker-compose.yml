@@ -45,6 +45,17 @@ services:
       timeout: 10s
       retries: 20
 
+  # Rate limiting only (D34). Host port 6380: 6379 belongs to the old stack. Counters live a day at
+  # most, so no persistence; noeviction makes a full Redis refuse writes (fail closed), never drop limits.
+  redis:
+    image: redis:7.4
+    command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "noeviction", "--save", "", "--appendonly", "no"]
+    ports: ["6380:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
 volumes:
   pgdata:
   kafkadata:

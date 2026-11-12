@@ -13,9 +13,11 @@ and for a small gym pilot.
 - Postgres: **5434** (dev DB `calmfit`, test DB `calmfit_test`)
 - API: **8080**. The old `calmfit-backend` container also uses 8080 and must stay stopped.
 - Kafka: **9094** from the host (`kafka:9092` inside compose).
+- Redis: **6380** from the host (rate limiting only). 6379 belongs to the old stack and a local redis-server.
 
 ## Make targets
 - `db-up`: start Postgres and wait until healthy
+- `redis-up`: start Redis (rate limiting only) and wait until healthy
 - `kafka-up` / `topics`: start the broker; create `workout-events` and `workout-events-dlq` (idempotent)
 - `relay`: publish outbox rows to Kafka (run exactly one)
 - `worker`: consume `workout-events` in group `calmfit-stats` into `weekly_stats` (run 2)
@@ -30,6 +32,7 @@ and for a small gym pilot.
 - DB tests use `calmfit_test` via `testutil.DB(t)`. If `TEST_DATABASE_URL` is unset they **fail,
   never skip** (hint: `make test-db`). Only `go test -short` skips them.
 - Kafka tests use `testutil.KafkaTopics(t)` (per-test topics) and likewise fail without `TEST_KAFKA_BROKERS`.
+- Redis tests use `testutil.Redis(t)` (per-test key prefix) and likewise fail without `TEST_REDIS_URL`.
 - Use `go vet` / `go test`, not `go build ./...` (it drops binaries in the repo root).
 
 ## Progression

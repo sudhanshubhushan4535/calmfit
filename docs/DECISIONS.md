@@ -341,3 +341,23 @@ Day 6's failure drills.
 - **Spending cap (manual step):** set a monthly limit for the key's workspace in the Anthropic
   Console before turning the flag on. The per-user daily limit (D34) bounds normal use, and the
   cap bounds everything else.
+
+### D34. How is voice rate-limited?
+- **Choice:**
+  - **Limit:** `ratelimit.Daily` allows `voice.daily_limit` (30) parses per user per local
+    calendar day (the config timezone, D4).
+  - **Mechanism:** one `MULTI` runs `INCR <prefix>:<user>:<local date>` plus a `PEXPIRE` until the
+    next local midnight. Because the expiry is relative, it isn't affected by clock skew between
+    the API and Redis. Every attempt counts, including refused ones. INCR is atomic, so concurrent
+    calls can't get past the limit (tested with 50 at once).
+  - **Fails closed:** Redis is reached with 500 ms timeouts and no client retries. Any Redis error
+    is `ErrUnavailable`, and the caller must refuse (503). Tap logging never touches Redis.
+  - **Redis setup:** `redis:7.4` on host port 6380 with `maxmemory 200mb` and `noeviction`, so a
+    full Redis refuses writes instead of silently dropping counters. There's no persistence.
+- **Why (user decision, Day 5):** The spec says Redis is for rate limiting only. Failing closed
+  means an outage can't remove the cost guard. Voice is optional, because every set can still be
+  tapped.
+- **Accepted:** restarting Redis resets that day's counters. That gives each user at most one more
+  day's allowance (about $0.006). The provider spending cap (D33) bounds the rest.
+- **Account deletion and export:** the key holds only a count and a pseudonymous user id, and
+  expires by local midnight. `DELETE /me` doesn't touch Redis, and the export doesn't include it.

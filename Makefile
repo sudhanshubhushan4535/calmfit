@@ -2,13 +2,16 @@
 -include .env
 export
 
-.PHONY: db-up kafka-up topics migrate-up migrate-down migrate-status seed run relay worker dlq-replay test-db test
+.PHONY: db-up kafka-up redis-up topics migrate-up migrate-down migrate-status seed run relay worker dlq-replay test-db test
 
 db-up:
 	docker compose up -d --wait postgres
 
 kafka-up:
 	docker compose up -d --wait kafka
+
+redis-up:
+	docker compose up -d --wait redis
 
 # Idempotent. Partitions and retention are explicit because broker auto-create is off.
 # retention.ms=-1: a full rebuild re-reads workout-events from offset 0 (see docs/DECISIONS.md).
