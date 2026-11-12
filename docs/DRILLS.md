@@ -18,7 +18,7 @@ services as on the VM (Postgres 16, Kafka 4.3.2 KRaft single broker, Redis 7.4).
 | Stop Redis | **PASS**: voice 503 ×20; the other 4 endpoints 200 ×20 each | fail-closed voice answer takes ~0.5 s |
 | Forced duplicate delivery | **PASS**: 103 duplicates skipped, totals unchanged | 103/103 counted as `duplicate` |
 | Malformed event | **PASS**: 2 records → DLQ with headers; the next event on the same key applied | applied 660 ms later |
-| Replay rebuild | **Not run yet:** needs approval (see below) | — |
+| Replay rebuild | **PASS**: weekly_stats identical after truncate + full replay (rows, sums, md5) | 12,613 records re-read in 8.0 s (~1,580/s) |
 
 ## 1. Kill one worker mid-load: `make drill-worker-kill`
 
@@ -112,17 +112,42 @@ it came from the relay or the broker.
 source offset and the error, so a poison record never blocks its partition. `make dlq-replay`
 (D27) can send them back after a fix.
 
-## 5. Replay rebuild: `make drill-replay` (not run yet)
+## 5. Replay rebuild: `make drill-replay`
 
 The script follows D28 exactly:
 1. Start the relay and workers and wait until idle.
 2. Snapshot `weekly_stats`: row count, sums, and the md5 of every row in key order.
-3. Save a `pg_dump` of `weekly_stats` + `processed_events` into `drill-out/`.
-4. Stop the workers.
+3. Save a `pg_dump` of `weekly_stats` + `processed_events` into `drill-out/` as a safety copy.
+4. Stop both workers (SIGTERM; the group had 0 members).
 5. `TRUNCATE weekly_stats, processed_events` in one transaction.
-6. Reset `calmfit-stats` to the earliest offsets.
-7. Start the workers, wait for lag 0, snapshot again, compare.
+6. Reset `calmfit-stats` to offset 0 on all 3 partitions.
+7. Start two workers, wait until the lag is 0, snapshot again, compare.
 
-It hasn't been run on the dev database yet. Step 5 deletes the derived rows of **every** user, not
-only synthetic or drill users, before rebuilding them, and that needs an explicit go-ahead
-first. The result goes here once it has run.
+It ran with the user's go-ahead, because step 5 deletes the derived rows of every user before
+rebuilding them.
+
+| | Before | After rebuild |
+| --- | --- | --- |
+| `weekly_stats` rows | 72 | 72 |
+| workouts / sets | 12,504 / 187,518 | 12,504 / 187,518 |
+| volume_g | 64,544,197,500 | 64,544,197,500 |
+| md5 of all rows | `a7137642e419f639d6b77f62f602d6c2` | `a7137642e419f639d6b77f62f602d6c2` |
+
+| Rebuild | Value |
+| --- | --- |
+| Records re-read | 12,613 in **8.0 s** (first to last record, ~1,580/s with 2 workers), from offset 0 |
+| Applied | 12,504 |
+| Duplicates skipped | 104: the copies forced in drill 3, which are separate records in the topic |
+| Sent to the DLQ again | 5: the 2 records from drill 4, plus 3 malformed records from Day 4 testing at `workout-events/2@0–2` |
+| Safety copy | `derived-before.dump`, 350 KB (not needed) |
+
+**What it shows:**
+- **The derived table is fully reproducible from the topic.** Infinite retention (D20) plus
+  idempotent apply (D24) rebuild it byte for byte, and business tables aren't touched.
+- **Poison records don't stop a rebuild.** They go to the DLQ again (D26).
+- **Side effect:** every full replay adds the topic's permanently bad records to the DLQ again
+  (+5 here). `make dlq-replay ARGS=-dry-run` lists them. They are expected and harmless, but on
+  the VM it's worth knowing that the DLQ count can rise after a replay.
+
+Synthetic users (D40) have no events, so they had no `weekly_stats` before or after. That's
+consistent with stats being derived only from events.
