@@ -106,3 +106,56 @@ revisit any of them by changing the code, tests and this file together.
   Sunday for a past week, or today (unfinished) for the current one. Future dates → 400.
 - **Why:** Showing up comes first. A stall tip never contradicts the engine's own fix. Counting
   days that haven't happened yet would punish a Tuesday review.
+
+## Day 4
+
+### D17. How do events leave the database?
+- **Choice:** A transactional outbox. `outbox.Enqueue` takes a `pgx.Tx`, not a pool, so an event
+  can only be written inside the transaction of the domain write it describes: `workout.logged`
+  on the in_progress → completed transition, `plate.checked` on every plate upsert. A separate
+  relay (`cmd/relay`) polls `SELECT … WHERE published_at IS NULL ORDER BY id LIMIT 100 FOR UPDATE
+  SKIP LOCKED` every 500 ms, produces the batch synchronously (acks=all, idempotent producer),
+  then sets `published_at` in the same transaction.
+- **Why:** Writing to Postgres and Kafka separately (the dual-write problem) loses or invents
+  events when one of the two fails. With the outbox, the event exists if and only if the write committed.
+- **Trade-off:** At-least-once. If Kafka acks but the commit fails, the batch is published again.
+  Consumers dedupe on `event_id`.
+
+### D18. How many relays?
+- **Choice:** Exactly one. Two are safe (`SKIP LOCKED` gives each row to one relay; tested), but
+  they could publish one user's events out of order, because relay B can send row 150 before
+  relay A sends row 50.
+- **Why:** At pilot volume one relay has plenty of headroom, and per-user order comes for free.
+
+### D19. Event shape
+- **Choice:** The Kafka value is a JSON envelope `{event_id, type, version, user_id, occurred_at,
+  data}` and the key is `user_id`. Types are `workout.logged` v1 (workout_id, day, completed_at,
+  sets), `plate.checked` v1 (local_date, meal, protein, fiber) and `user.deleted` v1 (no data).
+  The Day 3 hook comment said `workout.completed`; we use the spec's name.
+- **Why:** The key keeps each user's events in one partition, in order. The version lets a payload
+  change without breaking old consumers. Events carry facts only, never email or name.
+
+### D20. Kafka setup
+- **Choice:** One `apache/kafka:4.3.2` broker in KRaft mode, 512 MB heap, broker auto-create off.
+  The host listener is **9094** (containers use `kafka:9092`). `make topics` creates
+  `workout-events` (3 partitions) and `workout-events-dlq` (1 partition), both with
+  `retention.ms=-1`. Client: franz-go (pure Go, explicit commits, admin API). Tests create and
+  delete their own topics, and fail (never skip) when `TEST_KAFKA_BROKERS` is unset or unreachable.
+- **Why:** 9094 avoids Postgres 5434, the API 8080, the old stack's 5433/6379, and the default
+  9092. Infinite retention lets a full rebuild re-read from offset 0, and pilot volume is tiny.
+  A DLQ record must not expire before someone looks at it.
+
+### D21. Deleted users' events stay in Kafka (accepted for the pilot)
+- **Choice:** With infinite retention, a deleted user's events (user_id plus training facts, no
+  email or name) stay in `workout-events`. The worker skips events for deleted users, so their
+  data is never rebuilt.
+- **Why:** This is the simplest design that keeps replay working. It's pseudonymous data on a
+  private broker for a 15–20 person pilot.
+- **Future fix:** crypto-shredding (encrypt each payload with a per-user key and delete the key on
+  account deletion), or a compacted design where a tombstone per key removes the data.
+
+### D22. How long are published outbox rows kept?
+- **Choice:** 7 days. The relay deletes `published_at < now() - 7 days` at most once a minute.
+  Unpublished rows are never deleted. No index for this: at pilot volume the table holds about a
+  week of rows.
+- **Why:** Recent rows help debug "was it published?", and older ones are already in Kafka.

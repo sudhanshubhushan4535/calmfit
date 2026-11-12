@@ -51,13 +51,18 @@ func DB(t *testing.T) *pgxpool.Pool {
 }
 
 // SubPrefix returns a unique google_sub prefix and deletes those users (cascading to sessions and
-// user_programs) when the test ends.
+// user_programs) and their outbox rows when the test ends.
 func SubPrefix(t *testing.T, db *pgxpool.Pool) string {
 	t.Helper()
 	b := make([]byte, 6)
 	_, _ = rand.Read(b)
 	prefix := "test-" + hex.EncodeToString(b) + "-"
 	t.Cleanup(func() {
+		// outbox.user_id has no FK (events outlive users), so its rows are removed explicitly.
+		if _, err := db.Exec(context.Background(), `
+			DELETE FROM outbox WHERE user_id IN (SELECT id FROM users WHERE google_sub LIKE $1)`, prefix+"%"); err != nil {
+			t.Errorf("cleanup outbox %s*: %v", prefix, err)
+		}
 		if _, err := db.Exec(context.Background(), `DELETE FROM users WHERE google_sub LIKE $1`, prefix+"%"); err != nil {
 			t.Errorf("cleanup users %s*: %v", prefix, err)
 		}

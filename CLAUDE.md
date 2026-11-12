@@ -12,9 +12,12 @@ and for a small gym pilot.
 ## Ports
 - Postgres: **5434** (dev DB `calmfit`, test DB `calmfit_test`)
 - API: **8080**. The old `calmfit-backend` container also uses 8080 and must stay stopped.
+- Kafka: **9094** from the host (`kafka:9092` inside compose).
 
 ## Make targets
 - `db-up`: start Postgres and wait until healthy
+- `kafka-up` / `topics`: start the broker; create `workout-events` and `workout-events-dlq` (idempotent)
+- `relay`: publish outbox rows to Kafka (run exactly one)
 - `migrate-up` / `migrate-down` / `migrate-status`: goose against `DATABASE_URL`
 - `seed`: validate `seed/*.json`, upsert in one transaction (idempotent)
 - `run`: start the API on :8080
@@ -24,6 +27,7 @@ and for a small gym pilot.
 ## Tests
 - DB tests use `calmfit_test` via `testutil.DB(t)`. If `TEST_DATABASE_URL` is unset they **fail,
   never skip** (hint: `make test-db`). Only `go test -short` skips them.
+- Kafka tests use `testutil.KafkaTopics(t)` (per-test topics) and likewise fail without `TEST_KAFKA_BROKERS`.
 - Use `go vet` / `go test`, not `go build ./...` (it drops binaries in the repo root).
 
 ## Progression

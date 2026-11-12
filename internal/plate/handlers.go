@@ -11,7 +11,9 @@ import (
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
+	"github.com/sudhanshubhushan4535/calmfit/internal/events"
 	"github.com/sudhanshubhushan4535/calmfit/internal/httpx"
+	"github.com/sudhanshubhushan4535/calmfit/internal/outbox"
 )
 
 const (
@@ -95,12 +97,21 @@ func (h *Handler) put(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Upsert: one row per (user, date, meal), so retries and edits never duplicate.
-	if _, err := h.DB.Exec(ctx, `
-		INSERT INTO plate_checks (user_id, local_date, meal, protein, fiber) VALUES ($1::uuid, $2, $3, $4, $5)
-		ON CONFLICT (user_id, local_date, meal)
-		DO UPDATE SET protein = EXCLUDED.protein, fiber = EXCLUDED.fiber, updated_at = now()`,
-		uid, date, meal, *body.Protein, *body.Fiber); err != nil {
-		httpx.InternalError(w, "plate: upsert", err)
+	// The plate.checked event is written in the same transaction, so it exists iff the upsert does.
+	err := pgx.BeginFunc(ctx, h.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO plate_checks (user_id, local_date, meal, protein, fiber) VALUES ($1::uuid, $2, $3, $4, $5)
+			ON CONFLICT (user_id, local_date, meal)
+			DO UPDATE SET protein = EXCLUDED.protein, fiber = EXCLUDED.fiber, updated_at = now()`,
+			uid, date, meal, *body.Protein, *body.Fiber); err != nil {
+			return fmt.Errorf("upsert: %w", err)
+		}
+		return outbox.Enqueue(ctx, tx, uid, events.TypePlateChecked, events.V1, events.PlateChecked{
+			LocalDate: date.Format(time.DateOnly), Meal: meal, Protein: *body.Protein, Fiber: *body.Fiber,
+		})
+	})
+	if err != nil {
+		httpx.InternalError(w, "plate: put", err)
 		return
 	}
 	days, err := Days(ctx, h.DB, uid, date, date, h.Cfg.Plate)

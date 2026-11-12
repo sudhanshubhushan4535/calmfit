@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/sudhanshubhushan4535/calmfit/internal/events"
 	"github.com/sudhanshubhushan4535/calmfit/internal/progression"
 )
 
@@ -216,4 +217,26 @@ func done(sets []LoggedSet) []progression.Set {
 		out[i] = progression.Set{WeightG: s.WeightG, Reps: s.Reps}
 	}
 	return out
+}
+
+// loggedSets returns a workout's sets for the workout.logged event, in workout order.
+func loggedSets(ctx context.Context, q querier, workoutID string) ([]events.LoggedSet, error) {
+	rows, err := q.Query(ctx, `
+		SELECT s.exercise_id, s.set_number, s.weight_g, s.reps
+		FROM workout_sets s
+		JOIN workout_exercises we ON we.workout_id = s.workout_id AND we.exercise_id = s.exercise_id
+		WHERE s.workout_id = $1::uuid
+		ORDER BY we.position, s.set_number`, workoutID)
+	if err != nil {
+		return nil, fmt.Errorf("load sets for event: %w", err)
+	}
+	sets, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (events.LoggedSet, error) {
+		var s events.LoggedSet
+		err := r.Scan(&s.ExerciseID, &s.SetNumber, &s.WeightG, &s.Reps)
+		return s, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("scan sets for event: %w", err)
+	}
+	return sets, nil
 }

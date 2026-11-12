@@ -2,10 +2,20 @@
 -include .env
 export
 
-.PHONY: db-up migrate-up migrate-down migrate-status seed run test-db test
+.PHONY: db-up kafka-up topics migrate-up migrate-down migrate-status seed run relay test-db test
 
 db-up:
 	docker compose up -d --wait postgres
+
+kafka-up:
+	docker compose up -d --wait kafka
+
+# Idempotent. Partitions and retention are explicit because broker auto-create is off.
+# retention.ms=-1: a full rebuild re-reads workout-events from offset 0 (see docs/DECISIONS.md).
+KAFKA_TOPICS = docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092
+topics:
+	$(KAFKA_TOPICS) --create --if-not-exists --topic workout-events --partitions 3 --config retention.ms=-1
+	$(KAFKA_TOPICS) --create --if-not-exists --topic workout-events-dlq --partitions 1 --config retention.ms=-1
 
 migrate-up:
 	go run ./cmd/migrate up
@@ -22,6 +32,10 @@ seed:
 
 run:
 	go run ./cmd/api
+
+# Publishes outbox rows to Kafka; run exactly one
+relay:
+	go run ./cmd/relay
 
 # Create calmfit_test on the compose Postgres if missing, migrate it, and load the seed (idempotent)
 test-db:

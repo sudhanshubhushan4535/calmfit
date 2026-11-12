@@ -16,7 +16,9 @@ import (
 
 	"github.com/sudhanshubhushan4535/calmfit/internal/auth"
 	"github.com/sudhanshubhushan4535/calmfit/internal/config"
+	"github.com/sudhanshubhushan4535/calmfit/internal/events"
 	"github.com/sudhanshubhushan4535/calmfit/internal/httpx"
+	"github.com/sudhanshubhushan4535/calmfit/internal/outbox"
 	"github.com/sudhanshubhushan4535/calmfit/internal/program"
 	"github.com/sudhanshubhushan4535/calmfit/internal/progression"
 )
@@ -554,8 +556,10 @@ func (h *Handler) complete(w http.ResponseWriter, r *http.Request) {
 			if n == 0 {
 				return apiError{http.StatusConflict, errNoSetsLogged}
 			}
-			if _, err := tx.Exec(ctx, `
-				UPDATE workouts SET status = 'completed', completed_at = now() WHERE id = $1::uuid`, id); err != nil {
+			ev := events.WorkoutLogged{WorkoutID: id}
+			if err := tx.QueryRow(ctx, `
+				UPDATE workouts SET status = 'completed', completed_at = now() WHERE id = $1::uuid
+				RETURNING day, completed_at`, id).Scan(&ev.Day, &ev.CompletedAt); err != nil {
 				return fmt.Errorf("mark completed: %w", err)
 			}
 			// SET, never increment: replaying a completion can't skip a day.
@@ -565,10 +569,14 @@ func (h *Handler) complete(w http.ResponseWriter, r *http.Request) {
 				return fmt.Errorf("advance program: %w", err)
 			}
 
-			// ==== DAY 4 OUTBOX HOOK ====
-			// Insert the workout.completed outbox event here, inside this transaction, so it is
-			// written if and only if the completion commits. Runs once: only on the in_progress -> completed transition.
-			// ===========================
+			// The workout.logged event commits if and only if the completion does. It is written
+			// once: only on the in_progress -> completed transition.
+			if ev.Sets, err = loggedSets(ctx, tx, id); err != nil {
+				return err
+			}
+			if err := outbox.Enqueue(ctx, tx, uid, events.TypeWorkoutLogged, events.V1, ev); err != nil {
+				return err
+			}
 		}
 		// Already completed: no writes; the summary is recomputed and is the same (history is bounded by completed_at).
 		sum, err = summarize(ctx, tx, uid, id)

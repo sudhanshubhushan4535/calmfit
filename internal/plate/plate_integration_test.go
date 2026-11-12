@@ -9,12 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/sudhanshubhushan4535/calmfit/internal/plate"
 	"github.com/sudhanshubhushan4535/calmfit/internal/server"
 	"github.com/sudhanshubhushan4535/calmfit/internal/testutil"
 )
 
 type env struct {
+	db     *pgxpool.Pool
 	url    string
 	fv     *testutil.FakeVerifier
 	prefix string
@@ -29,7 +32,7 @@ func setup(t *testing.T) *env {
 	fv := testutil.NewFakeVerifier()
 	srv := httptest.NewServer(server.New(db, fv, "test-client-id", cfg))
 	t.Cleanup(srv.Close)
-	return &env{url: srv.URL, fv: fv, prefix: prefix, today: cfg.Today(time.Now())}
+	return &env{db: db, url: srv.URL, fv: fv, prefix: prefix, today: cfg.Today(time.Now())}
 }
 
 func (e *env) do(t *testing.T, c *http.Client, method, path, body string) (int, []byte) {
