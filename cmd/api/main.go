@@ -45,6 +45,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Fail at startup, not on the first voice request. The parser itself is wired in with the endpoint.
+	if cfg.Voice.Enabled {
+		if _, err := requireEnv("ANTHROPIC_API_KEY"); err != nil {
+			return fmt.Errorf("voice.enabled is true in %s: %w", cfgPath, err)
+		}
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

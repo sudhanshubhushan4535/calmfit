@@ -308,3 +308,36 @@ Day 6's failure drills.
   aliases), never a user id, email or name.
 - **Why:** With nothing stored, account deletion and export (D29, D30) need no changes. The eval set
   (Day 5, C5) is a reviewed file in the repo, not harvested user speech.
+
+### D33. Which LLM parses voice, and how is it called?
+- **Choice:**
+  - **Model:** Claude Haiku 5.5 (`claude-haiku-5-5`, set in `config/app.json` → `voice.model`), called
+    with the official Go SDK (`anthropic-sdk-go/v2`).
+  - **Request settings:** thinking disabled, effort `low`, `max_tokens` 512. JSON-schema structured
+    output (`output_config.format`): `exercise_id` is an enum of today's exercise ids plus `""`, and
+    each set's `weight` is a number or null. `understood: false` marks text that isn't a set log.
+  - **Request contents:** a fixed system prompt, today's exercises (id, name, aliases) and the
+    transcript, which is wrapped in tags and treated as data.
+  - **Timeouts:** one **6 s deadline** covers the whole parse. Each attempt gets the smaller of
+    5 s and the time left. There is at most one retry, and only for a retryable failure (the attempt
+    timed out, a network error, 408/409/429/5xx). It happens only if at least 2 s remain after a
+    200 ms backoff. The SDK's own retries are off, because it can't see the deadline. In practice a
+    fast 5xx gets a second try, and a first attempt that times out at 5 s doesn't. A caller that
+    disconnects is never retried.
+  - **Isolation:** the client ignores environment defaults (`WithoutEnvironmentDefaults`), so
+    `ANTHROPIC_BASE_URL` or a local profile can't redirect it.
+  - **Outcomes:** a refusal, a `max_tokens` cut-off or `understood: false` is `could_not_parse`
+    (the user says it again or taps). A failed call, or a reply that breaks the schema (re-checked
+    in Go), is a provider error (502).
+  - **Key:** `ANTHROPIC_API_KEY` lives only in `.env`. The API refuses to start with
+    `voice.enabled: true` and no key. Tests use a fake server and never call the real API.
+- **Why (user decision, Day 5):** The spec asks for a small, cheap model. Extraction needs no
+  reasoning, so thinking off cuts latency and cost. The enum makes an exercise outside today's
+  workout impossible. There are three different enums, one per PPL day; each schema is compiled
+  once and then cached for 24 h.
+- **Cost estimate (to be replaced by measured numbers):** about 1.5k input and 150 output
+  tokens a call at $0.10 / $0.50 per MTok is about $0.0002 a call. 20 users × 10 calls × 30 days
+  is about $1–2 a month.
+- **Spending cap (manual step):** set a monthly limit for the key's workspace in the Anthropic
+  Console before turning the flag on. The per-user daily limit (D34) bounds normal use, and the
+  cap bounds everything else.

@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// MaxVoiceDailyLimit caps voice.daily_limit so a typo can't remove the cost guard.
+const MaxVoiceDailyLimit = 1000
+
 // MealsPerDay is how many meals a plate check scores (breakfast, lunch, dinner).
 const MealsPerDay = 3
 
@@ -24,11 +27,23 @@ type Plate struct {
 // MaxPoints is the best possible day: every meal has protein and fiber.
 func (p Plate) MaxPoints() int { return MealsPerDay * (p.ProteinPoints + p.FiberPoints) }
 
+// Voice holds the voice-logging settings. The API key is a secret and lives in .env, not here.
+type Voice struct {
+	// Enabled is the feature flag; it stays false until the eval accuracy is acceptable (D36).
+	Enabled bool `json:"enabled"`
+	// Model is the LLM that extracts sets from a transcript.
+	Model string `json:"model"`
+	// DailyLimit is how many parses one user may run per local day.
+	DailyLimit int `json:"daily_limit"`
+}
+
 // Config is config/app.json.
 type Config struct {
 	// Timezone is the IANA zone used for the user's local date and Mon–Sun weeks (no per-user zone in v1).
 	Timezone string `json:"timezone"`
 	Plate    Plate  `json:"plate"`
+	// Voice may be left out, which means disabled.
+	Voice Voice `json:"voice"`
 
 	Location *time.Location `json:"-"`
 }
@@ -64,6 +79,14 @@ func Parse(b []byte) (Config, error) {
 	}
 	if p.GoodDayMin <= 0 || p.GoodDayMin > p.MaxPoints() {
 		return Config{}, fmt.Errorf("config: plate good_day_min must be 1–%d", p.MaxPoints())
+	}
+	if v := c.Voice; v.Enabled || v.Model != "" || v.DailyLimit != 0 {
+		if v.Model == "" {
+			return Config{}, errors.New("config: voice model is required")
+		}
+		if v.DailyLimit < 1 || v.DailyLimit > MaxVoiceDailyLimit {
+			return Config{}, fmt.Errorf("config: voice daily_limit must be 1–%d", MaxVoiceDailyLimit)
+		}
 	}
 	return c, nil
 }

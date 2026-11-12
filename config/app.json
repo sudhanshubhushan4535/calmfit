@@ -4,5 +4,10 @@
     "protein_points": 2,
     "fiber_points": 1,
     "good_day_min": 6
+  },
+  "voice": {
+    "enabled": false,
+    "model": "claude-haiku-5-5",
+    "daily_limit": 30
   }
 }
