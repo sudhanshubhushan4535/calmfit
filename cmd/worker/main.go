@@ -21,6 +21,8 @@ import (
 )
 
 func main() {
+	// Millisecond timestamps: the drills measure rebalance times from these logs.
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}

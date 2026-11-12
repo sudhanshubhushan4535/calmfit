@@ -66,7 +66,7 @@ func (c *KafkaCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *KafkaCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	lags, dlq, err := c.read(ctx)
+	lags, dlq, err := c.Read(ctx)
 	if err != nil {
 		ch <- prometheus.MustNewConstMetric(c.up, prometheus.GaugeValue, 0)
 		return
@@ -78,8 +78,8 @@ func (c *KafkaCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(c.dlq, prometheus.GaugeValue, float64(dlq), c.DLQ)
 }
 
-// read returns the lag per partition of Topic and the record count of DLQ.
-func (c *KafkaCollector) read(ctx context.Context) (map[int32]int64, int64, error) {
+// Read returns the lag per partition of Topic and the record count of DLQ (also used by the drills).
+func (c *KafkaCollector) Read(ctx context.Context) (map[int32]int64, int64, error) {
 	ends, err := c.Admin.ListEndOffsets(ctx, c.Topic, c.DLQ)
 	if err == nil {
 		err = ends.Error()

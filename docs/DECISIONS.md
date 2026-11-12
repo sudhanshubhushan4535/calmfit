@@ -545,3 +545,12 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
   new query shape.
 - **Size guard:** an estimate from the measured per-row sizes. It refuses if the current size
   plus the estimate exceeds 3 GB.
+
+### D42. How does the Redis drill exercise voice without the real LLM?
+- **Choice:** `bin/drill redis` builds the real router in-process with the real DB and the real
+  Redis limiter, plus `voice.FakeParser`. It uses its own key prefix (`drill-voice`), so dev
+  counters aren't touched, and signs in a synthetic user through `auth.TestVerifier`. The
+  production API binary gets no fake-parser mode and no new flag.
+- **Why:** The spec says load tests and drills never call the real API. A fake-parser switch in
+  `cmd/api` would be one more thing that must never be on in production. The drill still
+  exercises the same handler, limiter and Redis client code as production.

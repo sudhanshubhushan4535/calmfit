@@ -26,7 +26,11 @@ and for a small gym pilot.
 - `dlq-replay`: re-publish DLQ records after a fix; `ARGS=-dry-run` lists them, `ARGS="-max N"` limits
 - `migrate-up` / `migrate-down` / `migrate-status`: goose against `DATABASE_URL`
 - `seed`: validate `seed/*.json`, upsert in one transaction (idempotent)
-- `run`: start the API on :8080
+- `seed-synthetic`: 4,000 deterministic synthetic users via COPY, no outbox (D40/D41); `ARGS=-reset` to replace
+- `run`: start the API on :8080 (`APP_ENV=dev TEST_AUTH=1 make run` for k6; D39)
+- `bench` / `bench-<name>`: k6 benchmarks (docs/BENCHMARKS.md); `explain`: query plans for the heaviest synthetic user
+- `drill-worker-kill` / `drill-redis` / `drill-duplicate` / `drill-malformed` / `drill-replay`: docs/DRILLS.md
+  (each starts its own relay + 2 workers; `drill-replay` truncates derived tables for all users)
 - `test-db`: create, migrate and seed `calmfit_test`
 - `test`: `go test ./...` with `.env` exported
 

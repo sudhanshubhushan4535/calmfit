@@ -2,7 +2,7 @@
 -include .env
 export
 
-.PHONY: bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
+.PHONY: drill-worker-kill drill-redis drill-duplicate drill-malformed drill-replay bench bench-log-set bench-next-workout bench-weekly-review bench-history explain db-up kafka-up redis-up obs-up obs-down topics migrate-up migrate-down migrate-status seed seed-synthetic run relay worker dlq-replay voice-eval test-db test
 
 db-up:
 	docker compose up -d --wait postgres
@@ -100,3 +100,17 @@ bench:
 # with the most workouts). Uses psql against DATABASE_URL.
 explain:
 	scripts/explain.sh $(SUB)
+
+# Failure drills (docs/DRILLS.md). Each starts its own relay + 2 workers and refuses to run while
+# other workers or a relay are running. Logs in drill-out/ (gitignored).
+drill-worker-kill:
+	scripts/drills/worker-kill.sh
+drill-redis:
+	scripts/drills/redis.sh
+drill-duplicate:
+	scripts/drills/duplicate.sh
+drill-malformed:
+	scripts/drills/malformed.sh
+# TRUNCATEs weekly_stats + processed_events for every user and rebuilds them from Kafka (D28)
+drill-replay:
+	scripts/drills/replay.sh
