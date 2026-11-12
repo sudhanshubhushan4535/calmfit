@@ -144,3 +144,26 @@ func Config(t *testing.T) config.Config {
 	}
 	return c
 }
+
+// Do sends a request (JSON body if non-empty) and fails the test unless it returns 2xx.
+func Do(t *testing.T, c *http.Client, method, url, body string) []byte {
+	t.Helper()
+	req, err := http.NewRequest(method, url, bytes.NewReader([]byte(body)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		t.Fatalf("%s %s: %d %s", method, url, resp.StatusCode, buf.String())
+	}
+	return buf.Bytes()
+}

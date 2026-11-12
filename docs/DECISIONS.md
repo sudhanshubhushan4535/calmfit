@@ -159,3 +159,35 @@ revisit any of them by changing the code, tests and this file together.
   Unpublished rows are never deleted. No index for this: at pilot volume the table holds about a
   week of rows.
 - **Why:** Recent rows help debug "was it published?", and older ones are already in Kafka.
+
+### D23. What does the worker build?
+- **Choice:** One derived table, `weekly_stats` (user, Monday of the week in the config timezone,
+  workouts, sets, volume_g = Σ weight_g × reps), built from `workout.logged`. `plate.checked` is
+  validated and recorded as processed, with no projection (analytics come on Day 7).
+  `user.deleted` deletes the user's `weekly_stats`. Nothing in the API reads `weekly_stats` yet.
+- **Why:** This is the smallest projection that exercises the whole event path. Stall flags stay
+  with the engine (D15), so the worker can't disagree with it.
+
+### D24. How is each event applied exactly once?
+- **Choice:** At-least-once delivery plus idempotent apply. In one DB transaction the worker
+  (1) inserts `event_id` into `processed_events` with `ON CONFLICT DO NOTHING` (0 rows means a
+  duplicate, so stop), (2) checks the user, (3) runs the handler. Kafka offsets are committed
+  manually (`DisableAutoCommit`) only **after** that transaction commits. `BlockRebalanceOnPoll`
+  keeps a polled batch's partitions until its offsets are committed.
+- **Why:** Duplicates come from the relay (D17), a crash between the DB commit and the offset
+  commit, and rebalances. `weekly_stats` increments on purpose, so a missing dedupe would show up
+  as double counting. `TestDuplicateDeliveryIsAppliedOnce` covers a duplicate record and a
+  simulated crash-then-redelivery.
+- **On a transient error:** the worker commits the records before the failing one and stops, so
+  the failing record is redelivered after a restart. (Commit 3 adds bounded retries and the DLQ.)
+  Permanent errors (bad envelope, unknown type/version, invalid payload) are logged and skipped
+  for now; commit 3 sends them to the DLQ.
+
+### D25. Events for deleted or unknown users
+- **Choice:** Before the handler runs, the worker reads the user with `FOR SHARE`. If the user is
+  missing or soft-deleted, the event is recorded in `processed_events` and skipped, with no error.
+  `user.deleted` always runs, because it only removes rows.
+- **Why:** The worker must never crash or rebuild data for a deleted user, including on a full
+  replay. The row lock serializes the event with account deletion (which locks the user `FOR
+  UPDATE`): either the stats are written first and the deletion removes them, or the deletion
+  wins and the event is skipped.
