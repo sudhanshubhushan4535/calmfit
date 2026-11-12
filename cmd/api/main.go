@@ -43,6 +43,17 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Checked first, so a refused start never opens the DB or a port.
+	testAuth, err := checkTestAuth(os.Getenv("APP_ENV"), os.Getenv("TEST_AUTH"))
+	if err != nil {
+		return err
+	}
+	var verifier auth.Verifier = auth.GoogleVerifier{ClientID: clientID}
+	if testAuth {
+		verifier = auth.TestVerifier{Next: verifier}
+		log.Printf("WARNING: TEST AUTH ENABLED (APP_ENV=dev): \"test:synthetic-N\" credentials sign in without Google")
+	}
+
 
 	cfgPath := os.Getenv("APP_CONFIG")
 	if cfgPath == "" {
@@ -96,7 +107,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           httpMetrics.Wrap(server.New(pool, auth.GoogleVerifier{ClientID: clientID}, clientID, cfg, opts...)),
+		Handler:           httpMetrics.Wrap(server.New(pool, verifier, clientID, cfg, opts...)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -134,6 +145,26 @@ func requireEnv(key string) (string, error) {
 		return "", fmt.Errorf("%s is not set (see .env.example)", key)
 	}
 	return v, nil
+}
+
+// checkTestAuth decides whether load-test sign-in is on (D39). TEST_AUTH must be "1" or empty;
+// "1" needs APP_ENV=dev exactly. Production with TEST_AUTH set refuses to start, and so does an
+// unset or unknown APP_ENV, so a forgotten variable can never turn it on.
+func checkTestAuth(appEnv, testAuth string) (bool, error) {
+	if testAuth == "" {
+		return false, nil
+	}
+	if testAuth != "1" {
+		return false, fmt.Errorf("TEST_AUTH must be 1 or empty, got %q", testAuth)
+	}
+	switch appEnv {
+	case "dev":
+		return true, nil
+	case "production":
+		return false, errors.New("refusing to start: TEST_AUTH is set while APP_ENV=production")
+	default:
+		return false, fmt.Errorf("refusing to start: TEST_AUTH needs APP_ENV=dev, got APP_ENV=%q", appEnv)
+	}
 }
 
 func envOr(key, def string) string {

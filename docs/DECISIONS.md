@@ -482,3 +482,23 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
   deployment choice, not a code change.
 - **Measured (local Mac):** after the API stopped, the alert was pending at the next scrape
   (≤ 15 s) and firing ~90 s after the stop. It cleared after the restart.
+
+### D39. How do load tests sign in, and how is that kept out of production?
+- **Choice:** `auth.TestVerifier` wraps the Google verifier. When it's on, it accepts the credential
+  `test:<sub>` on the normal `POST /auth/google`, and only for subs matching `^synthetic-\d{1,6}$`.
+  Those are the users `make seed-synthetic` creates. Every other credential goes to Google
+  unchanged, so a test login runs the real upsert and session code.
+  - **When it's on:** only with `TEST_AUTH=1` **and** `APP_ENV=dev` exactly.
+  - **When the API refuses to start:**
+    - `TEST_AUTH` set with `APP_ENV=production`;
+    - `TEST_AUTH` set with `APP_ENV` unset or unknown;
+    - `TEST_AUTH` set to anything but `1`.
+  - **Order:** the check runs first in `cmd/api`, before the DB or any port is opened.
+  - **Proof:** `TestCheckTestAuth` and a run of the binary (`APP_ENV=production TEST_AUTH=1` →
+    "refusing to start", exit 1).
+- **Why:** The spec says it must be impossible to enable in production. Requiring an explicit
+  `dev` (rather than "anything but production") means a missing variable can't turn it on. The
+  synthetic-only pattern means that even a misconfigured dev server can't sign into a real
+  person's account. Reusing the login route adds no new endpoint to secure.
+- **Day 7 note:** a benchmark against the VM needs a temporary `APP_ENV=dev TEST_AUTH=1` run
+  before any pilot user signs up. After that, the VM runs `APP_ENV=production`.

@@ -48,7 +48,13 @@ func TestKafkaCollectorLagAndDLQ(t *testing.T) {
 	if err := res.FirstErr(); err != nil {
 		t.Fatal(err)
 	}
-	part := res[0].Record.Partition
+	// Results come back in completion order, not input order: take the partition from a main-topic record.
+	var part int32 = -1
+	for _, r := range res {
+		if r.Record.Topic == k.Topic {
+			part = r.Record.Partition
+		}
+	}
 
 	adm := kadm.NewClient(cl)
 	group := k.Topic + "-group"
