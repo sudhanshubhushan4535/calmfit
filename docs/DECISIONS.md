@@ -594,3 +594,12 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
   shell path is public and not JSON, and that the API paths are not in the shell and are `no-store`.
 - **Not pilot-ready:** `/app` is still the manual-test page (D-A, Day 7). The PWA only makes it
   installable; a pilot-ready UI is separate work.
+
+### D45. What is on the landing page?
+- **Choice:** One embedded HTML page at `/`, rendered once at startup, with inline CSS, system fonts,
+  no third-party script, stylesheet or font, and no JS beyond the shared `pwa.js`. Copy comes only
+  from the build spec: the tagline, the aha line, the "why this weight" examples, Push → Pull → Legs,
+  the plate check, the three onboarding steps and the install guide. "Start with Google" links to `/app`.
+  `/` joins the precached shell. Rendered size: 5,310 bytes (a test caps it at 16 KB).
+- **Why:** The spec's design lives on "the CalmFit canvas", which isn't in the repo. Writing only
+  the spec's own words avoids claims nobody measured (no user counts, no testimonials).

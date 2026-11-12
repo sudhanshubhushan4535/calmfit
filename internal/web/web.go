@@ -1,4 +1,4 @@
-// Package web serves the manual-test app page (/app), the PWA files and the static guide pages.
+// Package web serves the landing page (/), the manual-test app page (/app), the PWA files and the static guide pages.
 package web
 
 import (
@@ -90,9 +90,28 @@ func ProteinGuide(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(proteinPage)
 }
 
+//go:embed landing.html
+var landingHTML string
+
+// landingPage is static, so it is rendered once at startup.
+var landingPage = func() []byte {
+	var b bytes.Buffer
+	if err := pageTmpl("landing", landingHTML).Execute(&b, nil); err != nil {
+		panic("web: render landing: " + err.Error())
+	}
+	return b.Bytes()
+}()
+
+// Landing serves the public landing page at /.
+func Landing(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(landingPage)
+}
+
 // ShellPaths is the app shell the service worker precaches (D44). Only pages and static files that
 // are the same for every user belong here; never an API path. Tests enforce both.
 var ShellPaths = []string{
+	"/",
 	"/app",
 	"/manifest.webmanifest",
 	"/static/pwa.js",
@@ -121,7 +140,7 @@ var swTmpl = texttemplate.Must(texttemplate.New("sw").Parse(swJS))
 // gives the worker a new cache name and old caches are dropped on activate.
 func shellVersion(clientID string) string {
 	h := sha256.New()
-	for _, s := range []string{indexHTML, installHTML, string(manifest), swJS, clientID} {
+	for _, s := range []string{indexHTML, landingHTML, installHTML, string(manifest), swJS, clientID} {
 		h.Write([]byte(s))
 		h.Write([]byte{0})
 	}

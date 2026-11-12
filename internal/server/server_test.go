@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -106,14 +107,34 @@ func TestServiceWorkerAndManifest(t *testing.T) {
 
 func TestAppPageIsInstallable(t *testing.T) {
 	h := router(t)
-	if rec := get(h, "/"); rec.Code != http.StatusFound || rec.Header().Get("Location") != "/app" {
-		t.Fatalf("/: status %d, location %q", rec.Code, rec.Header().Get("Location"))
-	}
 	body := get(h, "/app").Body.String()
 	for _, want := range []string{`rel="manifest" href="/manifest.webmanifest"`, `rel="apple-touch-icon"`,
 		`src="/static/pwa.js"`, `id="install"`, "Add to Home Screen", "Install app"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("/app is missing %q", want)
 		}
+	}
+}
+
+var externalRe = regexp.MustCompile(`<(script|link)[^>]+(src|href)="(https?:)?//`)
+
+// The landing page is mobile-first and light: no third-party scripts, stylesheets or fonts.
+func TestLandingPage(t *testing.T) {
+	rec := get(router(t), "/")
+	body := rec.Body.String()
+	if rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("/: status %d", rec.Code)
+	}
+	for _, want := range []string{"<h1>Stop counting grams. Start getting stronger.</h1>", `name="viewport"`,
+		`href="/app"`, `href="/guide/protein"`, `rel="manifest"`, `id="install"`, "Push, Pull, Legs"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("/ is missing %q", want)
+		}
+	}
+	if m := externalRe.FindString(body); m != "" {
+		t.Errorf("external resource on the landing page: %s", m)
+	}
+	if len(body) > 16<<10 {
+		t.Errorf("landing page is %d bytes; keep it under 16 KB", len(body))
 	}
 }
