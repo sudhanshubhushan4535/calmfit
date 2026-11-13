@@ -1,4 +1,4 @@
-// Package web serves the landing page (/), the manual-test app page (/app), the PWA files and the static guide pages.
+// Package web serves the landing page (/), the app (/app), the developer page (/dev), the PWA files and the static guide pages.
 package web
 
 import (
@@ -15,8 +15,11 @@ import (
 	texttemplate "text/template"
 )
 
-//go:embed index.html
-var indexHTML string
+//go:embed app.html
+var appHTML string
+
+//go:embed dev.html
+var devHTML string
 
 //go:embed install.html
 var installHTML string
@@ -27,17 +30,26 @@ func pageTmpl(name, src string) *template.Template {
 	return template.Must(t.New(name).Parse(src))
 }
 
-var indexTmpl = pageTmpl("index", indexHTML)
+var (
+	appTmpl = pageTmpl("app", appHTML)
+	devTmpl = pageTmpl("dev", devHTML)
+)
 
-// Index renders the app page (the manual-test page, served at /app) with the OAuth client ID injected.
-func Index(clientID string) http.HandlerFunc {
+func page(t *template.Template, clientID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := indexTmpl.Execute(w, struct{ ClientID string }{clientID}); err != nil {
-			log.Printf("web: render index: %v", err)
+		if err := t.Execute(w, struct{ ClientID string }{clientID}); err != nil {
+			log.Printf("web: render %s: %v", t.Name(), err)
 		}
 	}
 }
+
+// App serves the pilot app shell at /app (D51); the views are ES modules under /static/app/.
+func App(clientID string) http.HandlerFunc { return page(appTmpl, clientID) }
+
+// Dev serves the developer test page at /dev (D51): unlinked, noindex, kept in production for the
+// voice STT eval on real phones over HTTPS.
+func Dev(clientID string) http.HandlerFunc { return page(devTmpl, clientID) }
 
 //go:embed static
 var staticFS embed.FS
@@ -51,7 +63,13 @@ func Static() http.Handler {
 	}
 	files := http.StripPrefix("/static/", http.FileServerFS(sub))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		// Code must never mix versions after a deploy, so scripts and styles are revalidated every
+		// time (the service worker serves them offline). Images can be cached for a day.
+		if strings.HasSuffix(r.URL.Path, ".js") || strings.HasSuffix(r.URL.Path, ".css") {
+			w.Header().Set("Cache-Control", "no-cache")
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+		}
 		files.ServeHTTP(w, r)
 	})
 }
@@ -109,8 +127,9 @@ func Landing(w http.ResponseWriter, _ *http.Request) {
 }
 
 // ShellPaths is the app shell the service worker precaches (D44). Only pages and static files that
-// are the same for every user belong here; never an API path. Tests enforce both.
-var ShellPaths = []string{
+// are the same for every user belong here; never an API path. Tests enforce both. Every file under
+// static/app/ is added automatically, so a new view module can't be left out.
+var ShellPaths = append([]string{
 	"/",
 	"/app",
 	"/manifest.webmanifest",
@@ -120,6 +139,21 @@ var ShellPaths = []string{
 	"/static/icons/icon-512.png",
 	"/static/icons/maskable-512.png",
 	"/static/icons/apple-touch-icon.png",
+}, appFiles()...)
+
+// appFiles lists static/app/** as URL paths, sorted (fs.WalkDir walks in lexical order).
+func appFiles() []string {
+	var out []string
+	err := fs.WalkDir(staticFS, "static/app", func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			out = append(out, "/"+p)
+		}
+		return err
+	})
+	if err != nil {
+		panic("web: list static/app: " + err.Error())
+	}
+	return out
 }
 
 //go:embed manifest.webmanifest
@@ -141,7 +175,7 @@ var swTmpl = texttemplate.Must(texttemplate.New("sw").Parse(swJS))
 // gives the worker a new cache name and old caches are dropped on activate.
 func shellVersion(clientID string) string {
 	h := sha256.New()
-	for _, s := range []string{indexHTML, landingHTML, installHTML, string(manifest), swJS, clientID} {
+	for _, s := range []string{appHTML, landingHTML, installHTML, string(manifest), swJS, clientID} {
 		h.Write([]byte(s))
 		h.Write([]byte{0})
 	}

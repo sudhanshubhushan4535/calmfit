@@ -304,3 +304,34 @@ func TestLoginRequiresJSON(t *testing.T) {
 	defer resp.Body.Close()
 	wantStatus(t, resp, http.StatusUnsupportedMediaType)
 }
+
+// GET /me tells the app whether to show the mic (D51); the flag comes from the router's voice setup.
+func TestMeReportsVoiceFlag(t *testing.T) {
+	db := testutil.DB(t)
+	prefix := testutil.SubPrefix(t, db)
+	for _, on := range []bool{false, true} {
+		fv := &fakeVerifier{ids: map[string]auth.Identity{}}
+		mux := http.NewServeMux()
+		(&auth.Handler{DB: db, Verifier: fv, VoiceEnabled: on}).Register(mux)
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+		sub := prefix + "voice"
+		fv.set("tok", auth.Identity{Sub: sub, Email: sub + "@example.com", EmailVerified: true})
+		c := newClient(t)
+		resp, err := c.Post(srv.URL+"/auth/google", "application/json", strings.NewReader(`{"credential":"tok"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		resp, err = c.Get(srv.URL + "/me")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var me map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&me)
+		resp.Body.Close()
+		if me["voice_enabled"] != on || me["email"] != sub+"@example.com" {
+			t.Errorf("voice %v: /me = %v", on, me)
+		}
+	}
+}

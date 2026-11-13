@@ -770,3 +770,27 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
 - **Open for deploy (part B):** certificate method and domain (D-E), off-VM backup copies, how
   images reach the VM (build on the VM vs `docker save | ssh docker load` vs a registry), and the
   alert channel (D38).
+
+## Pilot UI
+
+### D51. How is the pilot app built, and where does the dev page go?
+- **Choice:** `/app` is a small app shell (`app.html`) plus vanilla ES modules under
+  `/static/app/`. No framework, no build step, no third-party code except Google sign-in.
+  - **Routing:** hash routes (`#/today`, `#/workout`, `#/next`, `#/plate`, `#/progress`,
+    `#/account`) and a bottom tab bar. Sign-in, onboarding, the workout and "next time" are
+    full-screen.
+  - **Data:** each view re-fetches what it shows (the server is the source of truth). `api.js`
+    turns `{"error": code}` into an `ApiError`; a 401 anywhere shows sign-in.
+  - **Caching:** every file under `static/app/` joins the service worker shell automatically
+    (`appFiles()`). Scripts and styles are served `no-cache`, so the browser never mixes old and
+    new modules after a deploy.
+  - **Design:** simple English (user decision), light + dark via `prefers-color-scheme`, tap
+    targets ≥ 48 px. Logging needs no keyboard.
+  - **Dev page:** the old test page moved to `/dev` (user decision): unlinked and `noindex`. It
+    stays in production because the voice STT eval (D36) needs HTTPS on real phones; its API
+    calls still need a session.
+  - **Voice:** `GET /me` now reports `voice_enabled` (true only when the voice route exists). The
+    app shows the mic only then, so turning the flag on needs no UI deploy.
+- **Why:** The spec says no heavy libraries. The screens are few and mostly forms around existing
+  endpoints. Pure logic (formatting, steppers, routing, the pending-set queue) lives in DOM-free
+  modules tested with `node --test`.

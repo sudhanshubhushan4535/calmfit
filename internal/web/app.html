@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CalmFit</title>
+  <meta name="theme-color" content="#166534">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="CalmFit">
+  <link rel="stylesheet" href="/static/app/app.css">
+</head>
+<body data-client-id="{{.ClientID}}" data-route="loading">
+  <main id="view" aria-live="polite"><p class="loading">Loading…</p></main>
+
+  {{template "install"}}
+
+  <nav class="tabs" aria-label="Main">
+    <a href="#/today" data-tab="today"><span aria-hidden="true">🏋️</span>Today</a>
+    <a href="#/plate" data-tab="plate"><span aria-hidden="true">🥗</span>Plate</a>
+    <a href="#/progress" data-tab="progress"><span aria-hidden="true">📈</span>Progress</a>
+    <a href="#/account" data-tab="account"><span aria-hidden="true">👤</span>Account</a>
+  </nav>
+  <div id="toast" role="status" hidden></div>
+
+  <noscript>CalmFit needs JavaScript.</noscript>
+  <script src="/static/pwa.js" defer></script>
+  <script src="/static/sharecard.js" defer></script>
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script type="module" src="/static/app/main.js"></script>
+</body>
+</html>

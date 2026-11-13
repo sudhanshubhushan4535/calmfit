@@ -32,6 +32,14 @@ const (
 type Handler struct {
 	DB       *pgxpool.Pool
 	Verifier Verifier
+	// VoiceEnabled is reported by GET /me so the app shows the mic only when the voice route exists.
+	VoiceEnabled bool
+}
+
+// Me is the response of GET /me: the user plus the features the app should show.
+type Me struct {
+	User
+	VoiceEnabled bool `json:"voice_enabled"`
 }
 
 // Register adds the auth routes to mux.
@@ -131,7 +139,7 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		httpx.InternalError(w, "auth: load user", err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, u)
+	httpx.WriteJSON(w, http.StatusOK, Me{User: u, VoiceEnabled: h.VoiceEnabled})
 }
 
 // logout is idempotent: it deletes the session if there is one and always clears the cookie.

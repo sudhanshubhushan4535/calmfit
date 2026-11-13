@@ -49,7 +49,7 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string, cfg config.Config, 
 		o.voice = nil
 	}
 	mux := http.NewServeMux()
-	a := &auth.Handler{DB: db, Verifier: v}
+	a := &auth.Handler{DB: db, Verifier: v, VoiceEnabled: o.voice != nil}
 	a.Register(mux)
 	(&program.Handler{DB: db}).Register(mux, a.RequireUser)
 	(&workout.Handler{DB: db, Cfg: cfg, Voice: o.voice}).Register(mux, a.RequireUser)
@@ -61,7 +61,8 @@ func New(db *pgxpool.Pool, v auth.Verifier, clientID string, cfg config.Config, 
 		(&reminder.Handler{DB: db, PublicKey: o.vapidPublic}).Register(mux, a.RequireUser)
 	}
 	mux.HandleFunc("GET /{$}", web.Landing)
-	mux.HandleFunc("GET /app", web.Index(clientID))
+	mux.HandleFunc("GET /app", web.App(clientID))
+	mux.HandleFunc("GET /dev", web.Dev(clientID))
 	mux.HandleFunc("GET /manifest.webmanifest", web.Manifest)
 	mux.HandleFunc("GET /sw.js", web.ServiceWorker(clientID))
 	mux.HandleFunc("GET /guide/protein", web.ProteinGuide)

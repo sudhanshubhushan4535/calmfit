@@ -78,7 +78,7 @@ test-db:
 # Go tests, then the browser-side JS tests (share card) with Node's built-in runner
 test:
 	go test ./...
-	node --test internal/web/*.test.cjs
+	node --test internal/web/*.test.cjs internal/web/*.test.mjs
 
 # k6 benchmarks (docs/BENCHMARKS.md). The API must run with APP_ENV=dev TEST_AUTH=1 on BASE_URL.
 # Summaries go to bench-results/ (gitignored). A missed target makes k6 exit non-zero.

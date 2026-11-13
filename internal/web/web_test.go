@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,14 +14,56 @@ import (
 )
 
 // html/template escapes contextually at execution time, so a script it can't parse only fails when served.
-func TestIndexRenders(t *testing.T) {
+func TestDevPageRenders(t *testing.T) {
 	rec := httptest.NewRecorder()
-	Index("client-123")(rec, httptest.NewRequest("GET", "/app", nil))
+	Dev("client-123")(rec, httptest.NewRequest("GET", "/dev", nil))
 	body := rec.Body.String()
 	if rec.Code != 200 || !strings.Contains(body, `data-client_id="client-123"`) || !strings.Contains(body, "/workouts/start") ||
 		!strings.Contains(body, "/progress/weekly") || !strings.Contains(body, "/voice/parse") || !strings.Contains(body, "stt.jsonl") || strings.Contains(body, "<script src=\"https://cdn") ||
-		!strings.Contains(body, "</html>") {
-		t.Fatalf("status %d, body %d bytes: missing client id, workout script or closing tag", rec.Code, len(body))
+		!strings.Contains(body, `<meta name="robots" content="noindex, nofollow">`) || !strings.Contains(body, "</html>") {
+		t.Fatalf("status %d, body %d bytes: missing client id, workout script, noindex or closing tag", rec.Code, len(body))
+	}
+}
+
+var scriptSrcRe = regexp.MustCompile(`<script[^>]+src="([^"]+)"`)
+
+// The app shell loads only our own scripts plus Google sign-in, and carries the client ID for GIS.
+func TestAppShellRenders(t *testing.T) {
+	rec := httptest.NewRecorder()
+	App("client-123")(rec, httptest.NewRequest("GET", "/app", nil))
+	body := rec.Body.String()
+	if rec.Code != 200 || !strings.Contains(body, `data-client-id="client-123"`) ||
+		!strings.Contains(body, `<script type="module" src="/static/app/main.js">`) || !strings.Contains(body, `id="install"`) {
+		t.Fatalf("status %d: shell is missing the client id, main.js or the install guide", rec.Code)
+	}
+	for _, m := range scriptSrcRe.FindAllStringSubmatch(body, -1) {
+		if src := m[1]; !strings.HasPrefix(src, "/static/") && src != "https://accounts.google.com/gsi/client" {
+			t.Errorf("unexpected script %s", src)
+		}
+	}
+	if strings.Contains(body, "noindex") || strings.Contains(body, "stt.jsonl") {
+		t.Error("the app shell must not contain the dev page")
+	}
+}
+
+// Every app module is precached, served as JS/CSS, and revalidated on every load (no stale mix).
+func TestAppFilesAreShell(t *testing.T) {
+	files := appFiles()
+	if len(files) < 8 {
+		t.Fatalf("only %d files under static/app", len(files))
+	}
+	h := Static()
+	for _, p := range files {
+		if !slices.Contains(ShellPaths, p) {
+			t.Errorf("%s is not in ShellPaths", p)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
+		ct := rec.Header().Get("Content-Type")
+		if rec.Code != 200 || !(strings.HasPrefix(ct, "text/javascript") || strings.HasPrefix(ct, "text/css")) ||
+			rec.Header().Get("Cache-Control") != "no-cache" {
+			t.Errorf("%s: status %d, type %q, cache %q", p, rec.Code, ct, rec.Header().Get("Cache-Control"))
+		}
 	}
 }
 
