@@ -794,3 +794,24 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
 - **Why:** The spec says no heavy libraries. The screens are few and mostly forms around existing
   endpoints. Pure logic (formatting, steppers, routing, the pending-set queue) lives in DOM-free
   modules tested with `node --test`.
+
+### D52. How does the app keep a logged set when the request fails?
+- **Choice:** Every ✓ first writes the set to a per-workout queue in `localStorage`
+  (`calmfit.pending.<workout id>`), then the queue is flushed **in order** to
+  `POST /workouts/{id}/sets`.
+  - A set leaves the queue only when the server confirms it.
+  - No answer (offline) or a 5xx keeps it and every set after it. The app shows "Not saved yet ·
+    Tap to retry", retries on tap, on the browser's `online` event, and on the next load.
+  - A 4xx (the server rejected the set) drops it and says why.
+  - "Finish" is disabled while anything is queued.
+  - If `localStorage` throws (private mode), the queue lives in memory for that page.
+  - An app opened offline shows "Can't reach CalmFit · Try again", never the sign-in screen.
+    The service worker serves the shell, and the queued sets go out first once it's back.
+- **Why:** The spec says "every set saved immediately; refresh or a failed request never loses
+  logged data", while offline sync is out of v1. The server only accepts set n after set n−1 and
+  upserts by set number. So sending in order is required, and re-sending is always safe. This is
+  a retry queue for single sets, not offline sync: starting or finishing a workout still needs the
+  network.
+- **Tested:** `node --test` covers order, stop-on-retryable, drop-on-4xx and the storage fallback.
+  A headless-Chrome run went offline mid-set, reloaded, came back online and saw the set saved and
+  the queue empty.

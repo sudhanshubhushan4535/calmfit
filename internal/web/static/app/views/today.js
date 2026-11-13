@@ -1,6 +1,6 @@
 // Today: the next workout with every exercise's set-1 target and its "why", Start/Resume, and
 // today's plate score.
-import { api } from '../api.js';
+import { api, track } from '../api.js';
 import { el, screen } from '../ui.js';
 import { dayName, target } from '../format.js';
 import { explainer } from './onboarding.js';
@@ -27,6 +27,7 @@ export default async function today(app) {
     api('GET', '/workouts/next'),
     api('GET', '/plate').catch(() => null),
   ]);
+  track('next_target_viewed'); // the next targets are on screen (D48)
   const resuming = !!next.in_progress_workout_id;
   const canStart = typeof app.startWorkout === 'function';
   screen(

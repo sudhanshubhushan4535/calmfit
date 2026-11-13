@@ -41,3 +41,48 @@ test('router parses hashes, defaulting to today', () => {
   assert.deepEqual(parse(''), { name: 'today' });
   assert.deepEqual(parse('#/../x'), { name: 'today' });
 });
+
+import { Queue, memoryStorage, safeStorage, flush, retryable } from './static/app/pending.js';
+
+const set = (n, reps = 12, ex = 'Squat') => ({ exercise_id: ex, set_number: n, weight_g: 40000, reps });
+const err = status => Object.assign(new Error('x'), { status });
+
+test('queue persists per workout and replaces the same set', () => {
+  const s = memoryStorage();
+  const q = new Queue(s, 'w1');
+  q.add(set(1)); q.add(set(2)); q.add(set(1, 10));
+  assert.deepEqual(q.list().map(x => [x.set_number, x.reps]), [[2, 12], [1, 10]]);
+  assert.equal(new Queue(s, 'w1').list().length, 2, 'survives a reload (same storage)');
+  assert.equal(new Queue(s, 'w2').list().length, 0, 'other workouts are separate');
+  q.remove(set(2)); q.remove(set(1));
+  assert.equal(s.getItem('calmfit.pending.w1'), null, 'empty queue leaves nothing behind');
+});
+
+test('flush sends in order and stops at the first retryable failure', async () => {
+  const q = new Queue(memoryStorage(), 'w');
+  [1, 2, 3].forEach(n => q.add(set(n)));
+  const sent = [];
+  const r = await flush(q, async s => { sent.push(s.set_number); if (s.set_number === 2) throw err(0); return { id: s.set_number }; });
+  assert.deepEqual(sent, [1, 2], 'set 3 is never sent before set 2');
+  assert.deepEqual(q.list().map(x => x.set_number), [2, 3]);
+  assert.equal(r.saved.length, 1);
+  assert.equal(r.error.status, 0);
+});
+
+test('flush drops a rejected set (4xx) and keeps going; 5xx is retryable', async () => {
+  const q = new Queue(memoryStorage(), 'w');
+  [1, 2].forEach(n => q.add(set(n)));
+  const r = await flush(q, async s => { if (s.set_number === 1) throw err(400); return {}; });
+  assert.equal(r.rejected.length, 1);
+  assert.equal(r.saved.length, 1);
+  assert.equal(q.list().length, 0);
+  assert.equal(retryable(err(503)), true);
+  assert.equal(retryable(err(409)), false);
+});
+
+test('safeStorage falls back to memory when storage throws', () => {
+  const broken = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
+  const q = new Queue(safeStorage(broken), 'w');
+  q.add(set(1));
+  assert.equal(q.list().length, 1);
+});

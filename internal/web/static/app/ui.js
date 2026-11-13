@@ -11,7 +11,7 @@ export function el(tag, attrs = {}, ...kids) {
     else if (v === true) n.setAttribute(k, '');
     else n.setAttribute(k, v);
   }
-  for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) n.append(k);
+  for (const k of kids.flat(Infinity)) if (k !== null && k !== undefined && k !== false) n.append(k);
   return n;
 }
 
@@ -49,7 +49,7 @@ export function stepper(label, value, onStep) {
 // screen replaces the main view and scrolls to the top.
 export function screen(...kids) {
   const main = document.getElementById('view');
-  main.replaceChildren(...kids);
+  main.replaceChildren(...kids.flat(Infinity).filter(k => k !== null && k !== undefined && k !== false));
   window.scrollTo(0, 0);
   return main;
 }

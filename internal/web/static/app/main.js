@@ -7,15 +7,19 @@ import { friendly } from './format.js';
 import signin from './views/signin.js';
 import onboarding from './views/onboarding.js';
 import today from './views/today.js';
+import workout from './views/workout.js';
+import next from './views/next.js';
 
 // Routes without the tab bar are full-screen.
 const FULL = new Set(['signin', 'onboarding', 'workout', 'next']);
 
-export const views = { signin, onboarding, today };
+export const views = { signin, onboarding, today, workout, next };
 
 export const app = {
   me: null,
+  summary: null, // the last "next time" summary, shown once by #/next
   go: router.go,
+  startWorkout: () => router.go('workout'),
   render: () => renderRoute(router.parse(location.hash).name),
 };
 
@@ -23,6 +27,7 @@ async function renderRoute(name) {
   if (!app.me) name = 'signin';
   else if (name === 'signin' || !views[name]) name = 'today';
   document.body.dataset.route = name;
+  document.getElementById('toast').hidden = true; // a toast belongs to the screen it was shown on
   document.body.classList.toggle('full', FULL.has(name));
   for (const a of document.querySelectorAll('.tabs a')) {
     a.toggleAttribute('aria-current', a.dataset.tab === name);
@@ -44,12 +49,25 @@ window.addEventListener('calmfit:signedout', () => {
   app.render();
 });
 
+let started = false;
+
 async function boot() {
   try {
     app.me = await api('GET', '/me');
   } catch (e) {
-    app.me = null; // 401 → sign-in; offline → the sign-in screen explains it can't load Google
+    app.me = null;
+    if (e.status !== 401) {
+      // Offline or server down: don't send a signed-in user to the sign-in screen.
+      document.body.dataset.route = 'loading';
+      screen(el('section', { class: 'card center' },
+        el('h1', {}, "Can't reach CalmFit"),
+        el('p', { class: 'muted' }, friendly(e)),
+        el('button', { type: 'button', class: 'primary', onclick: boot }, 'Try again')));
+      return;
+    }
   }
+  if (started) return app.render();
+  started = true;
   router.start(renderRoute);
 }
 

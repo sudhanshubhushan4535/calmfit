@@ -31,3 +31,10 @@ export async function api(method, path, body) {
   }
   return data;
 }
+
+// track posts a client analytics event (D48: only next_target_viewed is accepted). Best effort:
+// it never blocks or breaks a screen.
+export function track(name) {
+  fetch('/events', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }), credentials: 'same-origin' }).catch(() => {});
+}
