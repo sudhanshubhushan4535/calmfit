@@ -84,3 +84,16 @@ test('every drawn text stays inside the card and the story safe zone', () => {
   }
   assert.ok(drawn.some(d => d.text === 'Stop counting grams. Start getting stronger.'));
 });
+
+// Regression (found on the Progress screen): with 3 lifts + "+N more" the last line hit the divider.
+test('the longest lift list stays above the footer divider', () => {
+  const m = card.cardModel(review({ went_up: [1, 2, 3, 4, 5].map(i => up('Lift ' + i, 10000, 12, 10000 + i * 2500, 12)) }));
+  assert.equal(m.lifts.length, 4);
+  const drawn = card.drawCard(fakeCtx(), m);
+  const footer = drawn.find(d => d.text === m.footer);
+  const divider = card.H - 380;
+  for (const d of drawn.filter(d => d !== footer)) {
+    assert.ok(d.y + 12 < divider, `"${d.text}" at y=${d.y} touches the divider at ${divider}`);
+  }
+  assert.ok(footer.y - footer.size > divider, 'footer sits below the divider');
+});

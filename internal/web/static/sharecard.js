@@ -112,12 +112,12 @@
       wrap(s.label, tileW - 64, 36).forEach((line, j) => text(line, x + 32, tileY + 215 + j * 44, 36, INK, 500, tileW - 64, 24));
     });
 
-    text(m.strength, PAD, 1150, 64, INK, 800);
-    m.lifts.forEach((l, i) => text(l, PAD, 1260 + i * 90, 48, INK, 500, W - 2 * PAD, 30));
+    text(m.strength, PAD, 1140, 64, INK, 800);
+    m.lifts.forEach((l, i) => text(l, PAD, 1240 + i * 80, 48, INK, 500, W - 2 * PAD, 30));
 
     ctx.fillStyle = GREEN;
-    ctx.fillRect(PAD, H - 420, W - 2 * PAD, 6);
-    text(m.footer, PAD, H - 330, 44, MUTED, 600, W - 2 * PAD, 28);
+    ctx.fillRect(PAD, H - 380, W - 2 * PAD, 6);
+    text(m.footer, PAD, H - 300, 44, MUTED, 600, W - 2 * PAD, 28);
     return drawn;
   }
 

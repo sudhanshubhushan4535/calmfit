@@ -138,3 +138,25 @@ body.full #toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
 .dot.good { background: var(--soft); border-color: var(--green); }
 .dot-day { color: var(--muted); }
 .dot-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Progress */
+.week-nav { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; }
+.week-nav h1 { margin: 0; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: .8rem 0; }
+.stat { background: var(--soft); border-radius: 12px; padding: .6rem; text-align: center; }
+.stat-val { font-size: 1.5rem; font-weight: 800; color: var(--green-2); font-variant-numeric: tabular-nums; }
+ul.plain { list-style: none; padding: 0; margin: 0 0 .6rem; }
+ul.plain li { padding: .25rem 0; }
+.chips { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .4rem; margin-bottom: .4rem; }
+.chip { flex: none; min-height: 40px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); padding: 0 .9rem; font-size: .9rem; }
+.chip.on { background: var(--green); color: var(--on-green); border-color: var(--green); }
+svg.chart { width: 100%; height: auto; display: block; }
+svg.chart .axis { stroke: var(--line); }
+svg.chart .label { font: 10px system-ui, sans-serif; fill: var(--muted); }
+svg.chart .line { fill: none; stroke: var(--green-2); stroke-width: 2.5; }
+svg.chart .pt { fill: var(--green-2); }
+svg.chart .bar-done { fill: var(--green-2); }
+svg.chart .bar-planned { fill: var(--line); }
+.share-img { width: 60%; display: block; margin: .8rem auto; border-radius: 12px; border: 1px solid var(--line); }
+.btnlink { display: inline-flex; align-items: center; text-decoration: none; color: inherit; }
+.center-row { justify-content: center; margin-bottom: .6rem; }

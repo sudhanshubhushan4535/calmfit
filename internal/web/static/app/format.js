@@ -50,3 +50,23 @@ export function weekday(date) {
   const [y, m, d] = date.split('-').map(Number);
   return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 }
+
+// change formats a lift that went up (D14): "Lat Pulldown: 40 → 45 kg" or, at the same weight,
+// "Hammer Curl: 10 kg, 8 → 12 reps".
+export function change(c) {
+  return c.to.weight_g > c.from.weight_g
+    ? `${c.name}: ${kg(c.from.weight_g)} → ${kg(c.to.weight_g)} kg`
+    : `${c.name}: ${kg(c.to.weight_g)} kg, ${c.from.reps} → ${c.to.reps} reps`;
+}
+
+// shiftDate moves a YYYY-MM-DD date by n days (UTC arithmetic, so no DST or zone surprises).
+export function shiftDate(date, n) {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+// scale maps v in [lo, hi] onto [top, bottom] (SVG y grows downwards); a flat series sits mid-way.
+export function scale(v, lo, hi, top, bottom) {
+  if (hi === lo) return (top + bottom) / 2;
+  return bottom - (v - lo) / (hi - lo) * (bottom - top);
+}

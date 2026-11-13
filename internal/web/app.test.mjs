@@ -92,3 +92,14 @@ test('weekday names a local date without timezone shift', () => {
   assert.equal(weekday('2026-11-12'), 'Thu');
   assert.equal(weekday('2026-11-16'), 'Mon');
 });
+
+import { change, shiftDate, scale } from './static/app/format.js';
+test('review lines, week shifting and chart scaling', () => {
+  assert.equal(change({ name: 'Lat Pulldown', from: { weight_g: 40000, reps: 13 }, to: { weight_g: 45000, reps: 12 } }), 'Lat Pulldown: 40 → 45 kg');
+  assert.equal(change({ name: 'Hammer Curl', from: { weight_g: 10000, reps: 8 }, to: { weight_g: 10000, reps: 12 } }), 'Hammer Curl: 10 kg, 8 → 12 reps');
+  assert.equal(shiftDate('2026-11-09', -1), '2026-11-08');
+  assert.equal(shiftDate('2026-12-31', 1), '2027-01-01');
+  assert.equal(scale(10, 0, 10, 20, 120), 20, 'max at the top');
+  assert.equal(scale(0, 0, 10, 20, 120), 120, 'min at the bottom');
+  assert.equal(scale(5, 5, 5, 20, 120), 70, 'flat series in the middle');
+});
