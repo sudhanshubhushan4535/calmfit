@@ -19,7 +19,10 @@ let initialized = false;
 
 export default async function signin(app) {
   const host = el('div', { class: 'gsi' });
+  const notice = app.notice;
+  app.notice = null;
   screen(el('section', { class: 'hero' },
+    notice ? el('p', { class: 'explainer', role: 'status' }, notice) : null,
     el('img', { src: '/static/icons/icon-192.png', alt: '', width: 64, height: 64, class: 'logo' }),
     el('h1', {}, 'CalmFit'),
     el('p', { class: 'lead' }, "You don't have to decide what to lift next time. CalmFit already knows."),

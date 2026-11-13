@@ -815,3 +815,22 @@ Oracle A1 obtained (2 OCPU / 12 GB after resize), no hosting fallback needed.
 - **Tested:** `node --test` covers order, stop-on-retryable, drop-on-4xx and the storage fallback.
   A headless-Chrome run went offline mid-set, reloaded, came back online and saw the set saved and
   the queue empty.
+
+### D53. What does the Account screen allow?
+- **Choice:**
+  - **Gym days per week:** re-runs `POST /onboarding`, which changes only `days_per_week` and
+    never resets progress. The current value isn't shown: no endpoint returns it, and adding one
+    isn't worth it for a v1 setting.
+  - **Reminders:** off ("Turn off" unsubscribes this browser on the server and in the browser),
+    or on again. "Turn on" appears only after the post-workout offer was declined or reminders were
+    turned off. Before the first workout it says the offer comes then, so the spec's "ask only
+    after the first completed workout" holds. iPhone outside the home-screen app and blocked
+    notifications get an explanation instead of a button.
+  - **Data:** "Download my data" is a plain link to `GET /me/export` (attachment).
+  - **Log out:** ends the server session and disables Google auto-select. Sets still waiting to
+    be saved (D52) stay on the phone.
+  - **Delete account:** behind a disclosure, with an explanation. The button is enabled only after
+    typing DELETE. On success all `calmfit.*` local data is cleared, and the sign-in screen says the
+    account was deleted.
+- **Why:** Account deletion and export are spec requirements. Typing a word is the one place the
+  app asks for the keyboard, because deletion is irreversible.

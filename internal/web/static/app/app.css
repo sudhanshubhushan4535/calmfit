@@ -160,3 +160,13 @@ svg.chart .bar-planned { fill: var(--line); }
 .share-img { width: 60%; display: block; margin: .8rem auto; border-radius: 12px; border: 1px solid var(--line); }
 .btnlink { display: inline-flex; align-items: center; text-decoration: none; color: inherit; }
 .center-row { justify-content: center; margin-bottom: .6rem; }
+
+/* Account */
+.choices.left { justify-content: flex-start; margin: .5rem 0; }
+.choice.on { background: var(--green); color: var(--on-green); border-color: var(--green); }
+details.card summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+input[type="text"] {
+  display: block; width: 100%; min-height: 48px; margin: .3rem 0 .6rem; padding: 0 .8rem; font: inherit;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+}
+.secondary.danger { border-color: var(--err); }
