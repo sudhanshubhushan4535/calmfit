@@ -43,3 +43,10 @@ export function friendly(err) {
   if (err && err.status >= 500) return 'Something went wrong on our side. Please try again.';
   return (err && err.message) || 'Something went wrong.';
 }
+
+// weekday names a YYYY-MM-DD date ("2026-11-12" → "Thu") without timezone shifts.
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export function weekday(date) {
+  const [y, m, d] = date.split('-').map(Number);
+  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}

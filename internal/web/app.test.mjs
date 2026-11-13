@@ -86,3 +86,9 @@ test('safeStorage falls back to memory when storage throws', () => {
   q.add(set(1));
   assert.equal(q.list().length, 1);
 });
+
+import { weekday } from './static/app/format.js';
+test('weekday names a local date without timezone shift', () => {
+  assert.equal(weekday('2026-11-12'), 'Thu');
+  assert.equal(weekday('2026-11-16'), 'Mon');
+});

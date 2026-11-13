@@ -9,11 +9,12 @@ import onboarding from './views/onboarding.js';
 import today from './views/today.js';
 import workout from './views/workout.js';
 import next from './views/next.js';
+import plate from './views/plate.js';
 
 // Routes without the tab bar are full-screen.
 const FULL = new Set(['signin', 'onboarding', 'workout', 'next']);
 
-export const views = { signin, onboarding, today, workout, next };
+export const views = { signin, onboarding, today, workout, next, plate };
 
 export const app = {
   me: null,

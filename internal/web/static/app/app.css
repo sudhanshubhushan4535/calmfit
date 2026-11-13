@@ -123,3 +123,18 @@ body.full #toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
 /* Next time */
 .cmp { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; font-variant-numeric: tabular-nums; }
 .next-sets { color: var(--green-2); }
+
+/* Plate */
+.score { display: flex; align-items: baseline; gap: .6rem; margin: .2rem 0 .6rem; }
+.big { font-size: 2.6rem; font-weight: 800; color: var(--green-2); font-variant-numeric: tabular-nums; }
+.meal { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem 0; border-top: 1px solid var(--line); }
+.meal-name { font-weight: 600; }
+.meal-checks { display: flex; gap: .5rem; }
+.check { min-width: 6.4rem; }
+.check.on { background: var(--green); color: var(--on-green); border-color: var(--green); font-weight: 600; }
+.dots { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; margin: .5rem 0; }
+.dot { display: flex; flex-direction: column; align-items: center; padding: .4rem 0; border-radius: 10px; border: 1px solid var(--line); font-size: .8rem; }
+.dot.logged { background: var(--card); }
+.dot.good { background: var(--soft); border-color: var(--green); }
+.dot-day { color: var(--muted); }
+.dot-val { font-weight: 600; font-variant-numeric: tabular-nums; }
